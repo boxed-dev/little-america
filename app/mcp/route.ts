@@ -29,40 +29,41 @@ function widgetMeta(widget: ContentWidget) {
 }
 
 const handler = createMcpHandler(async (server) => {
-  const html = await getAppsSdkCompatibleHtml(baseURL, "/");
-
-  const contentWidget: ContentWidget = {
-    id: "show_content",
-    title: "Show Content",
-    templateUri: "ui://widget/content-template.html",
-    invoking: "Loading content...",
-    invoked: "Content loaded",
-    html: html,
-    description: "Displays the homepage content",
-    widgetDomain: "https://nextjs.org/docs",
+  // Hotel Search Widget
+  const hotelSearchHtml = await getAppsSdkCompatibleHtml(baseURL, "/hotel-search");
+  const hotelSearchWidget: ContentWidget = {
+    id: "search_hotels",
+    title: "Search Hotels",
+    templateUri: "ui://widget/hotel-search.html",
+    invoking: "Searching hotels...",
+    invoked: "Hotels found",
+    html: hotelSearchHtml,
+    description: "Search and display hotels",
+    widgetDomain: "https://hotelzify.com",
   };
+
   server.registerResource(
-    "content-widget",
-    contentWidget.templateUri,
+    "hotel-search-widget",
+    hotelSearchWidget.templateUri,
     {
-      title: contentWidget.title,
-      description: contentWidget.description,
+      title: hotelSearchWidget.title,
+      description: hotelSearchWidget.description,
       mimeType: "text/html+skybridge",
       _meta: {
-        "openai/widgetDescription": contentWidget.description,
+        "openai/widgetDescription": hotelSearchWidget.description,
         "openai/widgetPrefersBorder": true,
       },
     },
-    async (uri) => ({
+    async (uri: { href: string }) => ({
       contents: [
         {
           uri: uri.href,
           mimeType: "text/html+skybridge",
-          text: `<html>${contentWidget.html}</html>`,
+          text: `<html>${hotelSearchWidget.html}</html>`,
           _meta: {
-            "openai/widgetDescription": contentWidget.description,
+            "openai/widgetDescription": hotelSearchWidget.description,
             "openai/widgetPrefersBorder": true,
-            "openai/widgetDomain": contentWidget.widgetDomain,
+            "openai/widgetDomain": hotelSearchWidget.widgetDomain,
           },
         },
       ],
@@ -70,30 +71,161 @@ const handler = createMcpHandler(async (server) => {
   );
 
   server.registerTool(
-    contentWidget.id,
+    hotelSearchWidget.id,
     {
-      title: contentWidget.title,
-      description:
-        "Fetch and display the homepage content with the name of the user",
+      title: hotelSearchWidget.title,
+      description: "Search for hotels by location or query",
       inputSchema: {
-        name: z.string().describe("The name of the user to display on the homepage"),
+        query: z.string().describe("Search query (e.g., 'hotels in Kerala')"),
+        chain_id: z.string().optional().default("1").describe("Hotel chain ID"),
+        k: z.number().optional().default(10).describe("Maximum number of results"),
       },
-      _meta: widgetMeta(contentWidget),
+      _meta: widgetMeta(hotelSearchWidget),
     },
-    async ({ name }) => {
-      return {
-        content: [
-          {
-            type: "text",
-            text: name,
+    async ({ query, chain_id = "1", k = 10 }: { query: string; chain_id?: string; k?: number }) => {
+      try {
+        const response = await fetch("https://chatapi.hotelzify.com/search/hotels", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, chain_id, k }),
+        });
+
+        const data = await response.json();
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Found ${data.hotels?.length || 0} hotels for "${query}"`,
+            },
+          ],
+          structuredContent: {
+            query,
+            hotels: data.hotels || [],
+            count: data.hotels?.length || 0,
           },
-        ],
-        structuredContent: {
-          name: name,
-          timestamp: new Date().toISOString(),
+          _meta: widgetMeta(hotelSearchWidget),
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error searching hotels: ${error instanceof Error ? error.message : "Unknown error"}`,
+            },
+          ],
+          structuredContent: {
+            query,
+            hotels: [],
+            error: true,
+          },
+          _meta: widgetMeta(hotelSearchWidget),
+        };
+      }
+    }
+  );
+
+  // Room Availability Widget
+  const roomAvailabilityHtml = await getAppsSdkCompatibleHtml(baseURL, "/room-availability");
+  const roomAvailabilityWidget: ContentWidget = {
+    id: "check_room_availability",
+    title: "Check Room Availability",
+    templateUri: "ui://widget/room-availability.html",
+    invoking: "Checking availability...",
+    invoked: "Availability checked",
+    html: roomAvailabilityHtml,
+    description: "Check room availability and pricing",
+    widgetDomain: "https://hotelzify.com",
+  };
+
+  server.registerResource(
+    "room-availability-widget",
+    roomAvailabilityWidget.templateUri,
+    {
+      title: roomAvailabilityWidget.title,
+      description: roomAvailabilityWidget.description,
+      mimeType: "text/html+skybridge",
+      _meta: {
+        "openai/widgetDescription": roomAvailabilityWidget.description,
+        "openai/widgetPrefersBorder": true,
+      },
+    },
+    async (uri: { href: string }) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/html+skybridge",
+          text: `<html>${roomAvailabilityWidget.html}</html>`,
+          _meta: {
+            "openai/widgetDescription": roomAvailabilityWidget.description,
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetDomain": roomAvailabilityWidget.widgetDomain,
+          },
         },
-        _meta: widgetMeta(contentWidget),
-      };
+      ],
+    })
+  );
+
+  server.registerTool(
+    roomAvailabilityWidget.id,
+    {
+      title: roomAvailabilityWidget.title,
+      description: "Check room availability and pricing for a specific hotel",
+      inputSchema: {
+        hotelId: z.string().describe("Hotel ID"),
+        checkInDate: z.string().describe("Check-in date (YYYY-MM-DD)"),
+        checkOutDate: z.string().describe("Check-out date (YYYY-MM-DD)"),
+        adults: z.number().optional().default(2).describe("Number of adults"),
+        children: z.number().optional().default(0).describe("Number of children"),
+        infants: z.number().optional().default(0).describe("Number of infants"),
+      },
+      _meta: widgetMeta(roomAvailabilityWidget),
+    },
+    async ({ hotelId, checkInDate, checkOutDate, adults = 2, children = 0, infants = 0 }: { hotelId: string; checkInDate: string; checkOutDate: string; adults?: number; children?: number; infants?: number }) => {
+      try {
+        const totalGuest = adults + children;
+        const response = await fetch("https://api.hotelzify.com/hotel/v1/hotel/chatbot-availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hotelId, checkInDate, checkOutDate, adults, children, infants, totalGuest }),
+        });
+
+        const result = await response.json();
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: result.data?.length ? `Found ${result.data.length} available rooms` : "No rooms available for selected dates",
+            },
+          ],
+          structuredContent: {
+            hotelId,
+            checkInDate,
+            checkOutDate,
+            guests: { adults, children, infants },
+            rooms: result.data || [],
+            available: result.data?.length > 0,
+          },
+          _meta: widgetMeta(roomAvailabilityWidget),
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error checking availability: ${error instanceof Error ? error.message : "Unknown error"}`,
+            },
+          ],
+          structuredContent: {
+            hotelId,
+            checkInDate,
+            checkOutDate,
+            error: true,
+          },
+          _meta: widgetMeta(roomAvailabilityWidget),
+        };
+      }
     }
   );
 });
