@@ -31,7 +31,7 @@ export default function HotelSearchPage() {
   const count = toolOutput?.count || 0;
   
   // Check if data has loaded
-  const isLoading = !toolOutput || toolOutput.count === undefined;çççççç
+  const isLoading = !toolOutput || toolOutput.count === undefined;
 
   return (
     <div
