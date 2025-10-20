@@ -84,25 +84,46 @@ const handler = createMcpHandler(async (server) => {
     },
     async ({ query, chain_id = "1", k = 10 }: { query: string; chain_id?: string; k?: number }) => {
       try {
-        const response = await fetch("https://chatapi.hotelzify.com/search/hotels", {
+        // Fetch search results
+        const searchResponse = await fetch("https://chatapi.hotelzify.com/search/hotels", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query, chain_id, k }),
         });
 
-        const data = await response.json();
+        const searchData = await searchResponse.json();
+
+        // Fetch hotel images from chain-hotels API
+        const chainHotelsResponse = await fetch(`https://api.hotelzify.com/hotel/v2/hotel/chain-hotels-lite-v2?chainId=${chain_id}`);
+        const chainHotelsData = await chainHotelsResponse.json();
+
+        // Create a map of hotel images by hotel ID
+        const hotelImagesMap = new Map();
+        if (chainHotelsData.data?.hotels) {
+          chainHotelsData.data.hotels.forEach((hotel: any) => {
+            if (hotel.id && hotel.HotelImages) {
+              hotelImagesMap.set(hotel.id, hotel.HotelImages);
+            }
+          });
+        }
+
+        // Merge images with search results
+        const hotelsWithImages = (searchData.hotels || []).map((hotel: any) => ({
+          ...hotel,
+          HotelImages: hotelImagesMap.get(hotel.hotel_id) || [],
+        }));
 
         return {
           content: [
             {
               type: "text",
-              text: `Found ${data.hotels?.length || 0} hotels for "${query}"`,
+              text: `Found ${hotelsWithImages.length || 0} hotels for "${query}"`,
             },
           ],
           structuredContent: {
             query,
-            hotels: data.hotels || [],
-            count: data.hotels?.length || 0,
+            hotels: hotelsWithImages,
+            count: hotelsWithImages.length || 0,
           },
           _meta: widgetMeta(hotelSearchWidget),
         };
