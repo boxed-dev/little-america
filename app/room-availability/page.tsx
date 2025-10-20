@@ -60,14 +60,30 @@ export default function RoomAvailabilityPage() {
   };
 
   return (
-    <div
-      className="min-h-full bg-background"
-      style={{ 
-        maxHeight, 
-        height: displayMode === "fullscreen" ? maxHeight : undefined,
-        overflow: "auto" 
-      }}
-    >
+    <>
+      <style jsx>{`
+        .horizontal-scroll::-webkit-scrollbar {
+          height: 8px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .horizontal-scroll::-webkit-scrollbar-thumb {
+          background: rgb(226 232 240);
+          border-radius: 4px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgb(203 213 225);
+        }
+      `}</style>
+      <div
+        className="min-h-full bg-background"
+        style={{
+          maxHeight,
+          height: displayMode === "fullscreen" ? maxHeight : undefined,
+          overflow: "auto"
+        }}
+      >
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="space-y-4">
@@ -101,79 +117,88 @@ export default function RoomAvailabilityPage() {
             <p className="text-sm text-muted-foreground">Checking room availability...</p>
           </div>
         ) : rooms.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rooms.map((room) => (
-              <Card key={room.id} className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col">
-                {room.images && room.images[0] && (
-                  <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                    <img
-                      src={room.images[0]}
-                      alt={room.roomName}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <CardTitle className="leading-tight">{room.roomName}</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Up to {room.maxAdultCount} adults · {room.maxChildCount} children
-                      </p>
-                    </div>
-                    <div className="rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 shrink-0">
-                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-500">
-                        {room.availableRooms} left
-                      </span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col">
-                  {/* Amenities */}
-                  {room.amenities && room.amenities.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {room.amenities.slice(0, 6).map((amenity, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
-                        >
-                          {amenity}
-                        </span>
-                      ))}
+          <div
+            className="horizontal-scroll overflow-x-auto overflow-y-visible pb-4 -mx-6 px-6"
+            style={{
+              scrollBehavior: 'smooth',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgb(226 232 240) transparent'
+            }}
+          >
+            <div className="flex gap-4 w-max">
+              {rooms.map((room) => (
+                <Card key={room.id} className="overflow-hidden hover:shadow-md transition-shadow flex flex-col w-80 shrink-0">
+                  {room.images && room.images[0] && (
+                    <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                      <img
+                        src={room.images[0]}
+                        alt={room.roomName}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   )}
-
-                  {/* Pricing Options */}
-                  <div className="space-y-2 pt-4 border-t mt-auto">
-                    {room.pricing.slice(0, 3).map((price, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-medium">
-                            {price.useOnlyForDisplayRatePlanName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {room.currency} {price.roomPricePerNight.toFixed(0)} per night · {room.nights || 1} nights
-                          </p>
-                        </div>
-                        <div className="text-right space-y-0.5">
-                          <p className="text-lg font-semibold">
-                            {room.currency} {price.totalPriceForEntireStay.toFixed(0)}
-                          </p>
-                          {price.originalPriceBeforeDiscount > price.totalPriceForEntireStay && (
-                            <p className="text-xs text-muted-foreground line-through">
-                              {room.currency} {price.originalPriceBeforeDiscount.toFixed(0)}
-                            </p>
-                          )}
-                        </div>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <CardTitle className="leading-tight">{room.roomName}</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          Up to {room.maxAdultCount} adults · {room.maxChildCount} children
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 shrink-0">
+                        <span className="text-sm font-medium text-emerald-700 dark:text-emerald-500">
+                          {room.availableRooms} left
+                        </span>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow flex flex-col">
+                    {/* Amenities */}
+                    {room.amenities && room.amenities.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {room.amenities.slice(0, 6).map((amenity, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
+                          >
+                            {amenity}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Pricing Options */}
+                    <div className="space-y-2 pt-4 border-t mt-auto">
+                      {room.pricing.slice(0, 3).map((price, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          <div className="space-y-0.5">
+                            <p className="text-sm font-medium">
+                              {price.useOnlyForDisplayRatePlanName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {room.currency} {price.roomPricePerNight.toFixed(0)} per night · {room.nights || 1} nights
+                            </p>
+                          </div>
+                          <div className="text-right space-y-0.5">
+                            <p className="text-lg font-semibold">
+                              {room.currency} {price.totalPriceForEntireStay.toFixed(0)}
+                            </p>
+                            {price.originalPriceBeforeDiscount > price.totalPriceForEntireStay && (
+                              <p className="text-xs text-muted-foreground line-through">
+                                {room.currency} {price.originalPriceBeforeDiscount.toFixed(0)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -188,5 +213,6 @@ export default function RoomAvailabilityPage() {
         )}
       </div>
     </div>
+    </>
   );
 }
