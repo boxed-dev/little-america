@@ -1,6 +1,13 @@
 "use client";
 
 import { useWidgetProps, useMaxHeight, useDisplayMode } from "../hooks";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "../../components/ui/carousel";
 
 interface Pricing {
   totalPriceForEntireStay: number;
@@ -104,83 +111,90 @@ export default function RoomAvailabilityPage() {
           </div>
         ) : rooms.length > 0 ? (
           <div className="space-y-4">
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                className="rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow"
-              >
-                {/* Room Image */}
-                {room.images && room.images[0] && (
-                  <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                    <img
-                      src={room.images[0]}
-                      alt={room.roomName}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-
-                <div className="p-5 space-y-4">
-                  {/* Room Header */}
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <h2 className="text-lg font-medium leading-tight">{room.roomName}</h2>
-                      <p className="text-sm text-muted-foreground">
-                        Up to {room.maxAdultCount} adults · {room.maxChildCount} children
-                      </p>
-                    </div>
-                    <div className="rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 shrink-0">
-                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-500">
-                        {room.availableRooms} left
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Amenities */}
-                  {room.amenities && room.amenities.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {room.amenities.slice(0, 6).map((amenity, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
-                        >
-                          {amenity}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Pricing Options */}
-                  <div className="space-y-2 pt-2 border-t">
-                    {room.pricing.slice(0, 3).map((price, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-medium">
-                            {price.useOnlyForDisplayRatePlanName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {room.currency} {price.roomPricePerNight.toFixed(0)} per night · {room.nights || 1} nights
-                          </p>
+            <Carousel>
+              <CarouselContent>
+                {rooms.map((room) => (
+                  <CarouselItem key={room.id} className="md:basis-1/2 lg:basis-1/3">
+                    <div
+                      className="rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col"
+                    >
+                      {/* Room Image */}
+                      {room.images && room.images[0] && (
+                        <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                          <img
+                            src={room.images[0]}
+                            alt={room.roomName}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                        <div className="text-right space-y-0.5">
-                          <p className="text-lg font-semibold">
-                            {room.currency} {price.totalPriceForEntireStay.toFixed(0)}
-                          </p>
-                          {price.originalPriceBeforeDiscount > price.totalPriceForEntireStay && (
-                            <p className="text-xs text-muted-foreground line-through">
-                              {room.currency} {price.originalPriceBeforeDiscount.toFixed(0)}
+                      )}
+
+                      <div className="p-5 space-y-4 flex-grow">
+                        {/* Room Header */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <h2 className="text-lg font-medium leading-tight">{room.roomName}</h2>
+                            <p className="text-sm text-muted-foreground">
+                              Up to {room.maxAdultCount} adults · {room.maxChildCount} children
                             </p>
-                          )}
+                          </div>
+                          <div className="rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 shrink-0">
+                            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-500">
+                              {room.availableRooms} left
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Amenities */}
+                        {room.amenities && room.amenities.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {room.amenities.slice(0, 6).map((amenity, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
+                              >
+                                {amenity}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Pricing Options */}
+                        <div className="space-y-2 pt-2 border-t">
+                          {room.pricing.slice(0, 3).map((price, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                            >
+                              <div className="space-y-0.5">
+                                <p className="text-sm font-medium">
+                                  {price.useOnlyForDisplayRatePlanName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {room.currency} {price.roomPricePerNight.toFixed(0)} per night · {room.nights || 1} nights
+                                </p>
+                              </div>
+                              <div className="text-right space-y-0.5">
+                                <p className="text-lg font-semibold">
+                                  {room.currency} {price.totalPriceForEntireStay.toFixed(0)}
+                                </p>
+                                {price.originalPriceBeforeDiscount > price.totalPriceForEntireStay && (
+                                  <p className="text-xs text-muted-foreground line-through">
+                                    {room.currency} {price.originalPriceBeforeDiscount.toFixed(0)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 text-center">
