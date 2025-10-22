@@ -449,61 +449,59 @@ export default function RoomAvailabilityPage() {
 
         {/* Booking Modal - Redesigned */}
         {showBookingForm && selectedBooking && (
-          <div className="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className="modal-content bg-gradient-to-br from-background via-background to-muted/20 rounded-3xl shadow-2xl max-w-md w-full max-h-[95vh] overflow-hidden border-2 border-border/50">
+          <div className="modal-backdrop fixed inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center z-50 p-4">
+            <div className="modal-content bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full max-h-[95vh] overflow-hidden border border-slate-200 dark:border-slate-700">
               {!bookingConfirmed ? (
                 /* Booking Form */
                 <div className="overflow-y-auto max-h-[95vh]">
                   {/* Header with close button */}
-                  <div className="sticky top-0 z-10 bg-gradient-to-b from-background to-background/95 backdrop-blur-xl border-b border-border/50">
+                  <div className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-start justify-between p-6 pb-4">
                       <div className="space-y-1">
-                        <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
                           Complete Your Booking
                         </h2>
-                        <p className="text-sm text-muted-foreground">Just a few details to confirm your stay</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Just a few details to confirm your stay</p>
                       </div>
                       <button
                         onClick={handleCloseModal}
-                        className="rounded-full p-2 hover:bg-muted/80 transition-all duration-200 hover:rotate-90"
+                        className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hover:rotate-90"
                         aria-label="Close"
                       >
-                        <X className="w-5 h-5" />
+                        <X className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="p-6 space-y-6">
+                  <div className="p-6 space-y-6 bg-white dark:bg-slate-900">
                     {/* Selected Room Summary - Enhanced */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 p-5 space-y-4">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-
-                      <div className="relative">
-                        <h3 className="font-bold text-lg mb-1">{selectedBooking.room.roomName}</h3>
-                        <p className="text-sm text-muted-foreground">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
+                    <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-2 border-blue-200 dark:border-blue-800 p-5 space-y-4">
+                      <div>
+                        <h3 className="font-bold text-lg mb-1 text-slate-900 dark:text-white">{selectedBooking.room.roomName}</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
                       </div>
 
-                      <div className="relative flex items-center justify-between pt-3 border-t border-primary/20">
-                        <span className="text-sm font-medium text-muted-foreground">Total Amount</span>
+                      <div className="flex items-center justify-between pt-3 border-t border-blue-200 dark:border-blue-800">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Total Amount</span>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-primary">
+                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                             {selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}
                           </p>
                           {selectedBooking.pricing.originalPriceBeforeDiscount > selectedBooking.pricing.totalPriceForEntireStay && (
-                            <p className="text-xs text-muted-foreground line-through">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 line-through">
                               {selectedBooking.room.currency} {selectedBooking.pricing.originalPriceBeforeDiscount.toFixed(0)}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="relative flex flex-wrap gap-4 pt-3 border-t border-primary/20 text-xs">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Calendar className="w-4 h-4 text-primary" />
+                      <div className="flex flex-wrap gap-4 pt-3 border-t border-blue-200 dark:border-blue-800 text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                          <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           <span className="font-medium">{formatDate(checkIn)} - {formatDate(checkOut)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Users className="w-4 h-4 text-primary" />
+                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                          <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           <span className="font-medium">{guests?.adults || 0} adults {guests?.children ? `· ${guests.children} children` : ''}</span>
                         </div>
                       </div>
@@ -513,9 +511,9 @@ export default function RoomAvailabilityPage() {
                     <div className="space-y-5">
                       {/* Name */}
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="w-4 h-4 text-primary" />
+                        <label className="text-sm font-semibold flex items-center gap-2 text-slate-900 dark:text-white">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                            <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           </div>
                           Full Name
                         </label>
@@ -524,11 +522,11 @@ export default function RoomAvailabilityPage() {
                           value={bookingForm.name}
                           onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
                           placeholder="John Doe"
-                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 ${
+                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                             formErrors.name
-                              ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
-                              : 'border-border bg-background hover:border-primary/30'
-                          } focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200`}
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500'
+                          } focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
                         />
                         {formErrors.name && (
                           <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
@@ -540,9 +538,9 @@ export default function RoomAvailabilityPage() {
 
                       {/* Email */}
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Mail className="w-4 h-4 text-primary" />
+                        <label className="text-sm font-semibold flex items-center gap-2 text-slate-900 dark:text-white">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                            <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           </div>
                           Email Address
                         </label>
@@ -551,11 +549,11 @@ export default function RoomAvailabilityPage() {
                           value={bookingForm.email}
                           onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })}
                           placeholder="john@example.com"
-                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 ${
+                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                             formErrors.email
-                              ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
-                              : 'border-border bg-background hover:border-primary/30'
-                          } focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200`}
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500'
+                          } focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
                         />
                         {formErrors.email && (
                           <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
@@ -567,9 +565,9 @@ export default function RoomAvailabilityPage() {
 
                       {/* Phone */}
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Phone className="w-4 h-4 text-primary" />
+                        <label className="text-sm font-semibold flex items-center gap-2 text-slate-900 dark:text-white">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                            <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           </div>
                           Phone Number
                         </label>
@@ -578,11 +576,11 @@ export default function RoomAvailabilityPage() {
                           value={bookingForm.phone}
                           onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
                           placeholder="+1 (555) 123-4567"
-                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 ${
+                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
                             formErrors.phone
-                              ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
-                              : 'border-border bg-background hover:border-primary/30'
-                          } focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200`}
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500'
+                          } focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200`}
                         />
                         {formErrors.phone && (
                           <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
@@ -597,13 +595,13 @@ export default function RoomAvailabilityPage() {
                     <div className="flex gap-3 pt-2">
                       <button
                         onClick={handleCloseModal}
-                        className="flex-1 py-3.5 px-4 rounded-xl border-2 border-border hover:bg-muted hover:border-muted transition-all duration-200 font-semibold"
+                        className="flex-1 py-3.5 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 font-semibold"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleConfirmBooking}
-                        className="booking-button flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98]"
+                        className="booking-button flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]"
                       >
                         Confirm Booking
                       </button>
