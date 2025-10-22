@@ -377,15 +377,18 @@ export default function RoomAvailabilityPage() {
                       </div>
                     )}
 
-                    {/* Pricing Options */}
+                    {/* Pricing Options - Show only best rate */}
                     <div className="space-y-3 pt-3 border-t mt-auto">
-                      {room.pricing.slice(0, 3).map((price, idx) => {
-                        const discount = calculateDiscount(price.originalPriceBeforeDiscount, price.totalPriceForEntireStay);
+                      {(() => {
+                        // Find the best pricing option (lowest total price)
+                        const bestPrice = room.pricing.reduce((best, current) =>
+                          current.totalPriceForEntireStay < best.totalPriceForEntireStay ? current : best
+                        );
+                        const discount = calculateDiscount(bestPrice.originalPriceBeforeDiscount, bestPrice.totalPriceForEntireStay);
+                        const hasMultiplePlans = room.pricing.length > 1;
+
                         return (
-                          <div
-                            key={idx}
-                            className="space-y-2"
-                          >
+                          <>
                             <div className="pricing-option relative flex items-center justify-between p-3 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50">
                               {discount > 0 && (
                                 <div className="absolute -top-2 -right-2 flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 shadow-sm">
@@ -395,32 +398,37 @@ export default function RoomAvailabilityPage() {
                               )}
                               <div className="space-y-1 pr-4">
                                 <p className="text-sm font-semibold leading-tight">
-                                  {price.useOnlyForDisplayRatePlanName}
+                                  {bestPrice.useOnlyForDisplayRatePlanName}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {room.currency} {price.roomPricePerNight.toFixed(0)} × {room.nights || 1} {room.nights === 1 ? 'night' : 'nights'}
+                                  {room.currency} {bestPrice.roomPricePerNight.toFixed(0)} × {room.nights || 1} {room.nights === 1 ? 'night' : 'nights'}
                                 </p>
+                                {hasMultiplePlans && (
+                                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                    Best Rate • {room.pricing.length} plans available
+                                  </p>
+                                )}
                               </div>
                               <div className="text-right space-y-0.5">
                                 <p className="text-xl font-bold">
-                                  {room.currency} {price.totalPriceForEntireStay.toFixed(0)}
+                                  {room.currency} {bestPrice.totalPriceForEntireStay.toFixed(0)}
                                 </p>
-                                {price.originalPriceBeforeDiscount > price.totalPriceForEntireStay && (
+                                {bestPrice.originalPriceBeforeDiscount > bestPrice.totalPriceForEntireStay && (
                                   <p className="text-xs text-muted-foreground line-through">
-                                    {room.currency} {price.originalPriceBeforeDiscount.toFixed(0)}
+                                    {room.currency} {bestPrice.originalPriceBeforeDiscount.toFixed(0)}
                                   </p>
                                 )}
                               </div>
                             </div>
                             <button
-                              onClick={() => handleBookNow(room, price)}
+                              onClick={() => handleBookNow(room, bestPrice)}
                               className="booking-button w-full py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-semibold text-sm shadow-md hover:shadow-lg"
                             >
                               Book Now
                             </button>
-                          </div>
+                          </>
                         );
-                      })}
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
@@ -439,184 +447,250 @@ export default function RoomAvailabilityPage() {
           </div>
         )}
 
-        {/* Booking Modal */}
+        {/* Booking Modal - Redesigned */}
         {showBookingForm && selectedBooking && (
-          <div className="modal-backdrop fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="modal-content bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border">
+          <div className="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="modal-content bg-gradient-to-br from-background via-background to-muted/20 rounded-3xl shadow-2xl max-w-md w-full max-h-[95vh] overflow-hidden border-2 border-border/50">
               {!bookingConfirmed ? (
                 /* Booking Form */
-                <div className="p-6 space-y-6">
-                  {/* Header */}
-                  <div className="flex items-start justify-between pb-4 border-b">
-                    <div className="space-y-1">
-                      <h2 className="text-2xl font-bold">Complete Your Booking</h2>
-                      <p className="text-sm text-muted-foreground">Just a few details to confirm your stay</p>
-                    </div>
-                    <button
-                      onClick={handleCloseModal}
-                      className="rounded-full p-2 hover:bg-muted transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Selected Room Summary */}
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border space-y-3">
-                    <h3 className="font-semibold text-lg">{selectedBooking.room.roomName}</h3>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</span>
-                      <span className="font-bold text-lg">{selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2 border-t">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>{formatDate(checkIn)} - {formatDate(checkOut)}</span>
+                <div className="overflow-y-auto max-h-[95vh]">
+                  {/* Header with close button */}
+                  <div className="sticky top-0 z-10 bg-gradient-to-b from-background to-background/95 backdrop-blur-xl border-b border-border/50">
+                    <div className="flex items-start justify-between p-6 pb-4">
+                      <div className="space-y-1">
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                          Complete Your Booking
+                        </h2>
+                        <p className="text-sm text-muted-foreground">Just a few details to confirm your stay</p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5" />
-                        <span>{guests?.adults || 0} adults</span>
+                      <button
+                        onClick={handleCloseModal}
+                        className="rounded-full p-2 hover:bg-muted/80 transition-all duration-200 hover:rotate-90"
+                        aria-label="Close"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    {/* Selected Room Summary - Enhanced */}
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 p-5 space-y-4">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+                      <div className="relative">
+                        <h3 className="font-bold text-lg mb-1">{selectedBooking.room.roomName}</h3>
+                        <p className="text-sm text-muted-foreground">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
+                      </div>
+
+                      <div className="relative flex items-center justify-between pt-3 border-t border-primary/20">
+                        <span className="text-sm font-medium text-muted-foreground">Total Amount</span>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-primary">
+                            {selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}
+                          </p>
+                          {selectedBooking.pricing.originalPriceBeforeDiscount > selectedBooking.pricing.totalPriceForEntireStay && (
+                            <p className="text-xs text-muted-foreground line-through">
+                              {selectedBooking.room.currency} {selectedBooking.pricing.originalPriceBeforeDiscount.toFixed(0)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="relative flex flex-wrap gap-4 pt-3 border-t border-primary/20 text-xs">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          <span className="font-medium">{formatDate(checkIn)} - {formatDate(checkOut)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Users className="w-4 h-4 text-primary" />
+                          <span className="font-medium">{guests?.adults || 0} adults {guests?.children ? `· ${guests.children} children` : ''}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Form Fields */}
-                  <div className="space-y-4">
-                    {/* Name */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-2">
-                        <User className="w-4 h-4 text-primary" />
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        value={bookingForm.name}
-                        onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
-                        placeholder="John Doe"
-                        className={`input-field w-full px-4 py-3 rounded-lg border ${formErrors.name ? 'border-red-500' : 'border-border'} bg-background focus:outline-none focus:ring-2 focus:ring-primary/50`}
-                      />
-                      {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
+                    {/* Form Fields - Enhanced */}
+                    <div className="space-y-5">
+                      {/* Name */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="w-4 h-4 text-primary" />
+                          </div>
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={bookingForm.name}
+                          onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
+                          placeholder="John Doe"
+                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 ${
+                            formErrors.name
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
+                              : 'border-border bg-background hover:border-primary/30'
+                          } focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200`}
+                        />
+                        {formErrors.name && (
+                          <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                            <span className="inline-block w-1 h-1 bg-red-600 dark:bg-red-400 rounded-full"></span>
+                            {formErrors.name}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Email */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Mail className="w-4 h-4 text-primary" />
+                          </div>
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          value={bookingForm.email}
+                          onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })}
+                          placeholder="john@example.com"
+                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 ${
+                            formErrors.email
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
+                              : 'border-border bg-background hover:border-primary/30'
+                          } focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200`}
+                        />
+                        {formErrors.email && (
+                          <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                            <span className="inline-block w-1 h-1 bg-red-600 dark:bg-red-400 rounded-full"></span>
+                            {formErrors.email}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Phone */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Phone className="w-4 h-4 text-primary" />
+                          </div>
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          value={bookingForm.phone}
+                          onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
+                          placeholder="+1 (555) 123-4567"
+                          className={`input-field w-full px-4 py-3.5 rounded-xl border-2 ${
+                            formErrors.phone
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
+                              : 'border-border bg-background hover:border-primary/30'
+                          } focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200`}
+                        />
+                        {formErrors.phone && (
+                          <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                            <span className="inline-block w-1 h-1 bg-red-600 dark:bg-red-400 rounded-full"></span>
+                            {formErrors.phone}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Email */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-primary" />
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        value={bookingForm.email}
-                        onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })}
-                        placeholder="john@example.com"
-                        className={`input-field w-full px-4 py-3 rounded-lg border ${formErrors.email ? 'border-red-500' : 'border-border'} bg-background focus:outline-none focus:ring-2 focus:ring-primary/50`}
-                      />
-                      {formErrors.email && <p className="text-xs text-red-500">{formErrors.email}</p>}
+                    {/* Actions - Enhanced */}
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={handleCloseModal}
+                        className="flex-1 py-3.5 px-4 rounded-xl border-2 border-border hover:bg-muted hover:border-muted transition-all duration-200 font-semibold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleConfirmBooking}
+                        className="booking-button flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        Confirm Booking
+                      </button>
                     </div>
-
-                    {/* Phone */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-primary" />
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={bookingForm.phone}
-                        onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
-                        placeholder="+1 (555) 123-4567"
-                        className={`input-field w-full px-4 py-3 rounded-lg border ${formErrors.phone ? 'border-red-500' : 'border-border'} bg-background focus:outline-none focus:ring-2 focus:ring-primary/50`}
-                      />
-                      {formErrors.phone && <p className="text-xs text-red-500">{formErrors.phone}</p>}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      onClick={handleCloseModal}
-                      className="flex-1 py-3 px-4 rounded-lg border border-border hover:bg-muted transition-colors font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleConfirmBooking}
-                      className="booking-button flex-1 py-3 px-4 rounded-lg bg-primary text-primary-foreground font-semibold shadow-md hover:shadow-lg"
-                    >
-                      Confirm Booking
-                    </button>
                   </div>
                 </div>
               ) : (
-                /* Booking Confirmation */
-                <div className="p-8 space-y-6 text-center">
-                  {/* Success Icon */}
+                /* Booking Confirmation - Enhanced */
+                <div className="p-8 space-y-6 text-center overflow-y-auto max-h-[95vh]">
+                  {/* Success Animation */}
                   <div className="flex justify-center">
-                    <div className="success-checkmark rounded-full bg-emerald-500 p-4 shadow-lg">
-                      <Check className="w-12 h-12 text-white stroke-[3]" />
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-2xl animate-pulse"></div>
+                      <div className="success-checkmark relative rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 shadow-xl">
+                        <Check className="w-14 h-14 text-white stroke-[3]" />
+                      </div>
                     </div>
                   </div>
 
                   {/* Success Message */}
                   <div className="space-y-2">
-                    <h2 className="text-3xl font-bold">Booking Confirmed!</h2>
+                    <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
+                      Booking Confirmed!
+                    </h2>
                     <p className="text-muted-foreground">Your reservation has been successfully confirmed</p>
                   </div>
 
-                  {/* Booking ID */}
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
-                    <p className="text-sm text-muted-foreground mb-1">Booking ID</p>
-                    <p className="text-2xl font-bold font-mono tracking-wider">{bookingId}</p>
+                  {/* Booking ID - Enhanced */}
+                  <div className="relative overflow-hidden p-5 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border-2 border-primary/30">
+                    <div className="absolute top-0 left-0 w-24 h-24 bg-primary/20 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Booking Reference</p>
+                    <p className="text-3xl font-bold font-mono tracking-wider text-primary">{bookingId}</p>
                   </div>
 
-                  {/* Booking Details */}
-                  <div className="space-y-3 text-left p-4 rounded-xl bg-muted/30 border">
-                    <div className="flex justify-between items-start pb-3 border-b">
+                  {/* Booking Details - Enhanced */}
+                  <div className="space-y-4 text-left p-5 rounded-2xl bg-gradient-to-br from-muted/50 to-muted/30 border-2 border-border/50">
+                    <div className="flex justify-between items-start pb-4 border-b-2 border-border/50">
                       <div>
-                        <p className="font-semibold text-lg">{selectedBooking.room.roomName}</p>
-                        <p className="text-sm text-muted-foreground">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
+                        <p className="font-bold text-lg">{selectedBooking.room.roomName}</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
                       </div>
-                      <p className="font-bold text-xl">{selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}</p>
+                      <p className="font-bold text-2xl text-primary">{selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}</p>
                     </div>
 
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Guest Name</span>
-                        <span className="font-medium">{bookingForm.name}</span>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between py-2">
+                        <span className="text-muted-foreground font-medium">Guest Name</span>
+                        <span className="font-semibold">{bookingForm.name}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Email</span>
-                        <span className="font-medium">{bookingForm.email}</span>
+                      <div className="flex justify-between py-2">
+                        <span className="text-muted-foreground font-medium">Email</span>
+                        <span className="font-semibold truncate ml-4">{bookingForm.email}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Phone</span>
-                        <span className="font-medium">{bookingForm.phone}</span>
+                      <div className="flex justify-between py-2">
+                        <span className="text-muted-foreground font-medium">Phone</span>
+                        <span className="font-semibold">{bookingForm.phone}</span>
                       </div>
-                      <div className="flex justify-between pt-2 border-t">
-                        <span className="text-muted-foreground">Check-in</span>
-                        <span className="font-medium">{formatDate(checkIn)}</span>
+                      <div className="h-px bg-border/50 my-2"></div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-muted-foreground font-medium">Check-in</span>
+                        <span className="font-semibold">{formatDate(checkIn)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Check-out</span>
-                        <span className="font-medium">{formatDate(checkOut)}</span>
+                      <div className="flex justify-between py-2">
+                        <span className="text-muted-foreground font-medium">Check-out</span>
+                        <span className="font-semibold">{formatDate(checkOut)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Guests</span>
-                        <span className="font-medium">{guests?.adults || 0} adults, {guests?.children || 0} children</span>
+                      <div className="flex justify-between py-2">
+                        <span className="text-muted-foreground font-medium">Guests</span>
+                        <span className="font-semibold">{guests?.adults || 0} adults{guests?.children ? `, ${guests.children} children` : ''}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Confirmation Note */}
-                  <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900">
-                    <p className="text-sm text-blue-900 dark:text-blue-300">
-                      A confirmation email has been sent to <span className="font-semibold">{bookingForm.email}</span>
-                    </p>
+                  {/* Confirmation Note - Enhanced */}
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/40 dark:to-blue-950/20 border-2 border-blue-200 dark:border-blue-900/50">
+                    <div className="flex items-start gap-3">
+                      <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                      <p className="text-sm text-blue-900 dark:text-blue-300 text-left">
+                        A confirmation email has been sent to <span className="font-bold">{bookingForm.email}</span>
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Close Button */}
+                  {/* Close Button - Enhanced */}
                   <button
                     onClick={handleCloseModal}
-                    className="booking-button w-full py-3 px-4 rounded-lg bg-primary text-primary-foreground font-semibold shadow-md hover:shadow-lg"
+                    className="booking-button w-full py-4 px-6 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-bold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                   >
                     Done
                   </button>
