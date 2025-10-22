@@ -76,6 +76,8 @@ export default function RoomAvailabilityPage() {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [bookingId, setBookingId] = useState("");
   const [formErrors, setFormErrors] = useState<Partial<BookingFormData>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
@@ -88,11 +90,14 @@ export default function RoomAvailabilityPage() {
     return Math.round(((original - final) / original) * 100);
   };
 
-  const generateBookingId = () => {
-    const prefix = "BK";
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}${timestamp}${random}`;
+  const parsePhoneNumber = (phone: string) => {
+    // Extract dial code and mobile number
+    // Format: +XX XXXXXXXXXX or +XX-XXX-XXX-XXXX or similar
+    const cleanPhone = phone.replace(/[\s\-()]/g, '');
+    const dialCodeMatch = cleanPhone.match(/^(\+\d{1,3})/);
+    const dialCode = dialCodeMatch ? dialCodeMatch[1] : '+1';
+    const mobile = cleanPhone.replace(/^\+\d{1,3}/, '');
+    return { dialCode, mobile };
   };
 
   const handleBookNow = (room: Room, pricing: Pricing) => {
@@ -125,10 +130,59 @@ export default function RoomAvailabilityPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleConfirmBooking = () => {
-    if (validateForm()) {
-      setBookingId(generateBookingId());
+  const handleConfirmBooking = async () => {
+    if (!validateForm() || !selectedBooking) return;
+
+    setIsSubmitting(true);
+    setBookingError(null);
+
+    try {
+      const { dialCode, mobile } = parsePhoneNumber(bookingForm.phone);
+
+      const bookingPayload = {
+        hotelId: hotelId,
+        name: bookingForm.name,
+        email: bookingForm.email,
+        dialCode: dialCode,
+        mobile: mobile,
+        checkInDate: checkIn,
+        checkOutDate: checkOut,
+        adults: guests?.adults || 2,
+        children: guests?.children || 0,
+        infants: guests?.infants || 0,
+        totalGuests: (guests?.adults || 2) + (guests?.children || 0),
+        applyExtraDiscount: false,
+        hotelRooms: [
+          {
+            name: selectedBooking.room.roomName,
+            ratePlanName: selectedBooking.pricing.ratePlanName
+          }
+        ]
+      };
+
+      const response = await fetch('https://api.hotelzify.com/hotel/authorised/v1/bookings/chatbot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjExNzE5LCJyb2xlIjo0LCJyb2xlcyI6IkFETUlOIiwiaG90ZWxJZHMiOlsyMDQ0LDM2NDUsMzY1MF0sImlhdCI6MTczMDgxMDM2OSwiZXhwIjoyMzM1NjEwMzY5fQ.q0jlQKIg6fWonaNrFaVzAJDPu6uP_cwuFmmw4eX11V8'
+        },
+        body: JSON.stringify(bookingPayload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Booking failed. Please try again.');
+      }
+
+      // Use the booking ID from the API response
+      setBookingId(result.data?.bookingId || result.bookingId || `BK${Date.now()}`);
       setBookingConfirmed(true);
+    } catch (error) {
+      console.error('Booking error:', error);
+      setBookingError(error instanceof Error ? error.message : 'Failed to create booking. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -138,6 +192,8 @@ export default function RoomAvailabilityPage() {
     setBookingForm({ name: "", email: "", phone: "" });
     setBookingConfirmed(false);
     setFormErrors({});
+    setBookingError(null);
+    setIsSubmitting(false);
   };
 
   return (
@@ -591,19 +647,37 @@ export default function RoomAvailabilityPage() {
                       </div>
                     </div>
 
+                    {/* Error Message */}
+                    {bookingError && (
+                      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border-2 border-red-200 dark:border-red-900/50">
+                        <p className="text-sm text-red-900 dark:text-red-300 font-medium">
+                          {bookingError}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Actions - Enhanced */}
                     <div className="flex gap-3 pt-2">
                       <button
                         onClick={handleCloseModal}
-                        className="flex-1 py-3.5 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 font-semibold"
+                        disabled={isSubmitting}
+                        className="flex-1 py-3.5 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleConfirmBooking}
-                        className="booking-button flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]"
+                        disabled={isSubmitting}
+                        className="booking-button flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200 flex items-center justify-center gap-2"
                       >
-                        Confirm Booking
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span>Creating Booking...</span>
+                          </>
+                        ) : (
+                          'Confirm Booking'
+                        )}
                       </button>
                     </div>
                   </div>
