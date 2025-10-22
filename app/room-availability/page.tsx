@@ -668,12 +668,12 @@ export default function RoomAvailabilityPage() {
                       <button
                         onClick={handleConfirmBooking}
                         disabled={isSubmitting}
-                        className="booking-button flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200 flex items-center justify-center gap-2"
+                        className="booking-button flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap min-w-0"
                       >
                         {isSubmitting ? (
                           <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            <span>Creating Booking...</span>
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                            <span className="truncate">Processing...</span>
                           </>
                         ) : (
                           'Confirm Booking'
