@@ -23,9 +23,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Read BUILD_ID at build time for cache busting
+  const buildId = process.env.BUILD_ID || Date.now().toString();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="build-id" content={buildId} />
         <NextChatSDKBootstrap baseUrl={baseURL} />
       </head>
       <body
@@ -43,6 +47,18 @@ function NextChatSDKBootstrap({ baseUrl }: { baseUrl: string }) {
       <base href={baseUrl}></base>
       <script>{`window.innerBaseUrl = ${JSON.stringify(baseUrl)}`}</script>
       <script>{`window.__isChatGptApp = typeof window.openai !== "undefined";`}</script>
+      <script>
+        {`
+          // Chunk loading error handler
+          window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('Failed to load chunk')) {
+              console.error('[Chunk Load Error] Detected stale chunk reference. Reloading page...');
+              // Force reload to get fresh chunk references
+              window.location.reload();
+            }
+          }, true);
+        `}
+      </script>
       <script>
         {"(" +
           (() => {
