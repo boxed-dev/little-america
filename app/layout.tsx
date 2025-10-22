@@ -49,14 +49,48 @@ function NextChatSDKBootstrap({ baseUrl }: { baseUrl: string }) {
       <script>{`window.__isChatGptApp = typeof window.openai !== "undefined";`}</script>
       <script>
         {`
-          // Chunk loading error handler
+          // Comprehensive chunk loading error handler
           window.addEventListener('error', function(e) {
-            if (e.message && e.message.includes('Failed to load chunk')) {
-              console.error('[Chunk Load Error] Detected stale chunk reference. Reloading page...');
-              // Force reload to get fresh chunk references
-              window.location.reload();
+            const errorMsg = e.message || '';
+            const filename = e.filename || '';
+
+            // Detect chunk loading errors
+            if (errorMsg.includes('Failed to load chunk') ||
+                errorMsg.includes('ChunkLoadError') ||
+                (filename.includes('/_next/static/chunks/') && e.error)) {
+              console.error('[Chunk Load Error] Detected stale chunk reference:', errorMsg);
+
+              // Prevent infinite reload loop
+              const lastReload = sessionStorage.getItem('lastChunkReload');
+              const now = Date.now();
+
+              if (!lastReload || (now - parseInt(lastReload)) > 5000) {
+                sessionStorage.setItem('lastChunkReload', now.toString());
+                console.log('[Chunk Load Error] Reloading page...');
+                window.location.reload();
+              } else {
+                console.error('[Chunk Load Error] Too many reloads, skipping to prevent loop');
+              }
             }
           }, true);
+
+          // Also catch unhandled promise rejections for dynamic imports
+          window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && e.reason.message &&
+                (e.reason.message.includes('Failed to fetch') ||
+                 e.reason.message.includes('ChunkLoadError'))) {
+              console.error('[Chunk Load Error] Unhandled promise rejection:', e.reason.message);
+
+              const lastReload = sessionStorage.getItem('lastChunkReload');
+              const now = Date.now();
+
+              if (!lastReload || (now - parseInt(lastReload)) > 5000) {
+                sessionStorage.setItem('lastChunkReload', now.toString());
+                console.log('[Chunk Load Error] Reloading page...');
+                window.location.reload();
+              }
+            }
+          });
         `}
       </script>
       <script>
@@ -83,14 +117,14 @@ function NextChatSDKBootstrap({ baseUrl }: { baseUrl: string }) {
             });
 
             const originalReplaceState = history.replaceState;
-            history.replaceState = (s, unused, url) => {
+            history.replaceState = (_s, unused, url) => {
               const u = new URL(url ?? "", window.location.href);
               const href = u.pathname + u.search + u.hash;
               originalReplaceState.call(history, unused, href);
             };
 
             const originalPushState = history.pushState;
-            history.pushState = (s, unused, url) => {
+            history.pushState = (_s, unused, url) => {
               const u = new URL(url ?? "", window.location.href);
               const href = u.pathname + u.search + u.hash;
               originalPushState.call(history, unused, href);
