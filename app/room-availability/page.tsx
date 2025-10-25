@@ -334,24 +334,24 @@ export default function RoomAvailabilityPage() {
         {/* Header */}
         <div className="space-y-4 fade-in">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              {isLoading ? "Checking Availability" : "Available Rooms"}
+            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 dark:from-amber-400 dark:via-amber-300 dark:to-amber-400 bg-clip-text text-transparent">
+              {isLoading ? "Checking Availability" : "Little America - Available Rooms"}
             </h1>
           </div>
 
           {/* Booking Details Card */}
           {!isLoading && (
-            <div className="flex flex-wrap gap-4 p-4 rounded-xl bg-card/50 backdrop-blur-sm border">
+            <div className="flex flex-wrap gap-4 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/40 dark:to-amber-950/20 border-2 border-amber-200 dark:border-amber-900/50">
               <div className="flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-primary" />
+                <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <span className="font-medium">{formatDate(checkIn)}</span>
                 <span className="text-muted-foreground">→</span>
                 <span className="font-medium">{formatDate(checkOut)}</span>
               </div>
               {guests && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Users className="w-4 h-4 text-primary" />
+                  <Users className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   <span className="font-medium">{guests.adults + guests.children} guests</span>
                 </div>
               )}

@@ -133,13 +133,13 @@ export default function HotelSearchPage() {
         {/* Header */}
         <div className="space-y-2 fade-in">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              {query ? `Hotels in ${query.split(' in ')[1] || query}` : "Hotel Search"}
+            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 dark:from-amber-400 dark:via-amber-300 dark:to-amber-400 bg-clip-text text-transparent">
+              Little America Hotel
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            {isLoading ? "Searching for the best deals..." : count > 0 ? `${count} ${count === 1 ? 'property' : 'properties'} available` : "No properties found"}
+            {isLoading ? "Loading hotel details..." : "Luxury Accommodations in Downtown Salt Lake City"}
           </p>
         </div>
 
