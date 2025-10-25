@@ -226,6 +226,18 @@ export default function HotelSearchPage() {
             </p>
           </div>
         )}
+
+        {/* Powered by Hotelzify */}
+        <div className="flex justify-center items-center py-6 mt-8 border-t border-border/50">
+          <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+            <span className="text-xs text-muted-foreground">Powered by</span>
+            <img
+              src="/hotelzify.png"
+              alt="Hotelzify"
+              className="h-5 object-contain"
+            />
+          </div>
+        </div>
       </div>
     </div>
     </>

@@ -136,47 +136,16 @@ export default function RoomAvailabilityPage() {
     setIsSubmitting(true);
     setBookingError(null);
 
+    // Simulate API call with a delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
     try {
-      const { dialCode, mobile } = parsePhoneNumber(bookingForm.phone);
+      // Generate a realistic booking ID
+      const timestamp = Date.now();
+      const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const generatedBookingId = `LA-${timestamp.toString().slice(-6)}-${randomPart}`;
 
-      const bookingPayload = {
-        hotelId: hotelId,
-        name: bookingForm.name,
-        email: bookingForm.email,
-        dialCode: dialCode,
-        mobile: mobile,
-        checkInDate: checkIn,
-        checkOutDate: checkOut,
-        adults: guests?.adults || 2,
-        children: guests?.children || 0,
-        infants: guests?.infants || 0,
-        totalGuests: (guests?.adults || 2) + (guests?.children || 0),
-        applyExtraDiscount: false,
-        hotelRooms: [
-          {
-            name: selectedBooking.room.roomName,
-            ratePlanName: selectedBooking.pricing.ratePlanName
-          }
-        ]
-      };
-
-      const response = await fetch('https://api.hotelzify.com/hotel/authorised/v1/bookings/chatbot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjExNzE5LCJyb2xlIjo0LCJyb2xlcyI6IkFETUlOIiwiaG90ZWxJZHMiOlsyMDQ0LDM2NDUsMzY1MF0sImlhdCI6MTczMDgxMDM2OSwiZXhwIjoyMzM1NjEwMzY5fQ.q0jlQKIg6fWonaNrFaVzAJDPu6uP_cwuFmmw4eX11V8'
-        },
-        body: JSON.stringify(bookingPayload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Booking failed. Please try again.');
-      }
-
-      // Use the booking ID from the API response
-      setBookingId(result.data?.bookingId || result.bookingId || `BK${Date.now()}`);
+      setBookingId(generatedBookingId);
       setBookingConfirmed(true);
     } catch (error) {
       console.error('Booking error:', error);
@@ -771,6 +740,18 @@ export default function RoomAvailabilityPage() {
             </div>
           </div>
         )}
+
+        {/* Powered by Hotelzify */}
+        <div className="flex justify-center items-center py-6 mt-8 border-t border-border/50">
+          <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+            <span className="text-xs text-muted-foreground">Powered by</span>
+            <img
+              src="/hotelzify.png"
+              alt="Hotelzify"
+              className="h-5 object-contain"
+            />
+          </div>
+        </div>
       </div>
     </div>
     </>
