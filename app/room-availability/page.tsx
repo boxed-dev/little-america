@@ -746,7 +746,7 @@ export default function RoomAvailabilityPage() {
           <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
             <span className="text-xs text-muted-foreground">Powered by</span>
             <img
-              src="/hotelzify.png"
+              src="https://cdn.prod.website-files.com/665dbdf119ee43cd42be2657/665dfa4ae79bf116e4bb5ec0_Group%202745%402x-p-500.png"
               alt="Hotelzify"
               className="h-5 object-contain"
             />
