@@ -41,24 +41,26 @@ const LITTLE_AMERICA_DATA = {
   amenities_text: "Free WiFi, Outdoor Pool, Fitness Center, Restaurant, Room Service, Parking, Business Center, Concierge",
   search_score: 0.95,
   HotelImages: [
-    { cdnImageUrl: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80" },
-    { cdnImageUrl: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80" },
-    { cdnImageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80" },
+    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1697-Edit-V1-1024x683.jpg" },
+    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-1966-FV1-1024x681.jpg" },
+    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1532-RGB-V1-1024x682.jpg" },
+    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2024/06/LASL-Garden-Lodge-Exteriors-IMG_1689-Edited-V4-1024x682.jpg" },
   ]
 };
 
 const LITTLE_AMERICA_ROOMS = [
   {
-    roomName: "Deluxe King Room",
+    roomName: "Tower King Room",
     id: 101,
     maxAdultCount: 2,
-    maxChildCount: 1,
+    maxChildCount: 2,
     maxInfantCount: 1,
     currency: "USD",
-    amenities: ["King Bed", "City View", "Mini Bar", "Free WiFi", "Work Desk", "Coffee Maker"],
+    amenities: ["King Bed", "Mountain View", "French Richelieu Furniture", "Free WiFi", "Work Desk", "Coffee Maker", "600 sq ft"],
     images: [
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80",
-      "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80"
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1697-Edit-V1-1024x683.jpg",
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1698-Edit-V1-1024x683.jpg",
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1723-Edit-V1-1024x681.jpg"
     ],
     pricing: [
       {
@@ -80,16 +82,17 @@ const LITTLE_AMERICA_ROOMS = [
     nights: 3
   },
   {
-    roomName: "Executive Suite",
+    roomName: "Garden Premium Room",
     id: 102,
     maxAdultCount: 4,
     maxChildCount: 2,
     maxInfantCount: 1,
     currency: "USD",
-    amenities: ["Separate Living Room", "King Bed", "Sofa Bed", "Mountain View", "Minibar", "Free WiFi", "Work Desk"],
+    amenities: ["King or 2 Queens", "English Wool Carpets", "Garden View", "Free WiFi", "Work Desk", "Coffee Maker", "500 sq ft"],
     images: [
-      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80",
-      "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&q=80"
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-1966-FV1-1024x681.jpg",
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-1998-Edit-V1-1024x683.jpg",
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-2028-Edit-V1-1024x668.jpg"
     ],
     pricing: [
       {
@@ -104,27 +107,28 @@ const LITTLE_AMERICA_ROOMS = [
     nights: 3
   },
   {
-    roomName: "Premier Double Queen",
+    roomName: "Presidential Suite",
     id: 103,
-    maxAdultCount: 4,
-    maxChildCount: 2,
-    maxInfantCount: 1,
+    maxAdultCount: 2,
+    maxChildCount: 0,
+    maxInfantCount: 0,
     currency: "USD",
-    amenities: ["Two Queen Beds", "City View", "Free WiFi", "Mini Fridge", "Coffee Maker", "Work Desk"],
+    amenities: ["King Bed", "Penthouse Views", "Private Balcony", "Dining Room", "Family Room", "Free WiFi", "1,200 sq ft"],
     images: [
-      "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&q=80",
-      "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800&q=80"
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1532-RGB-V1-1024x682.jpg",
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1408-RGB-V1-1024x677.jpg",
+      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1494-RGB_V1-1024x682.jpg"
     ],
     pricing: [
       {
-        totalPriceForEntireStay: 540,
-        roomPricePerNight: 180,
-        originalPriceBeforeDiscount: 600,
-        useOnlyForDisplayRatePlanName: "Family Rate",
-        ratePlanName: "FAMILY"
+        totalPriceForEntireStay: 1350,
+        roomPricePerNight: 450,
+        originalPriceBeforeDiscount: 1500,
+        useOnlyForDisplayRatePlanName: "Presidential Suite Rate",
+        ratePlanName: "PRESIDENTIAL"
       }
     ],
-    availableRooms: 7,
+    availableRooms: 1,
     nights: 3
   }
 ];
