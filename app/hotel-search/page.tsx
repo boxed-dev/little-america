@@ -1,8 +1,8 @@
 "use client";
 
 import { useWidgetProps, useMaxHeight, useDisplayMode } from "../hooks";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Star, MapPin, Loader2, Hotel, Sparkles } from "lucide-react";
+import { Badge } from "@openai/apps-sdk-ui/components/Badge";
+import { Star, MapPin, Loader2, Hotel } from "lucide-react";
 
 interface Hotel {
   hotel_id: number;
@@ -29,217 +29,107 @@ export default function HotelSearchPage() {
   const maxHeight = useMaxHeight() ?? undefined;
   const displayMode = useDisplayMode();
 
-  const query = toolOutput?.query || "";
   const hotels = toolOutput?.hotels || [];
-  const count = toolOutput?.count || 0;
 
-  // Check if data has loaded
   const isLoading = !toolOutput || toolOutput.count === undefined;
 
   return (
-    <>
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes shimmer {
-          0% { background-position: -1000px 0; }
-          100% { background-position: 1000px 0; }
-        }
-
-        .fade-in {
-          animation: fadeIn 0.5s ease-out forwards;
-        }
-
-        .horizontal-scroll {
-          scroll-snap-type: x mandatory;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .horizontal-scroll > div > * {
-          scroll-snap-align: start;
-        }
-
-        .horizontal-scroll::-webkit-scrollbar {
-          height: 6px;
-        }
-
-        .horizontal-scroll::-webkit-scrollbar-track {
-          background: transparent;
-          margin: 0 24px;
-        }
-
-        .horizontal-scroll::-webkit-scrollbar-thumb {
-          background: rgb(203 213 225);
-          border-radius: 3px;
-          transition: background 0.2s;
-        }
-
-        .horizontal-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgb(148 163 184);
-        }
-
-        .skeleton {
-          background: linear-gradient(90deg,
-            rgb(241 245 249) 0%,
-            rgb(248 250 252) 50%,
-            rgb(241 245 249) 100%
-          );
-          background-size: 1000px 100%;
-          animation: shimmer 2s infinite;
-        }
-
-        .dark .skeleton {
-          background: linear-gradient(90deg,
-            rgb(30 41 59) 0%,
-            rgb(51 65 85) 50%,
-            rgb(30 41 59) 100%
-          );
-          background-size: 1000px 100%;
-        }
-
-        .hotel-card {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .hotel-card:hover {
-          transform: translateY(-4px);
-        }
-
-        .image-container {
-          position: relative;
-          overflow: hidden;
-        }
-
-        .image-container img {
-          transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .hotel-card:hover .image-container img {
-          transform: scale(1.05);
-        }
-      `}</style>
-      <div
-        className="min-h-full bg-gradient-to-b from-background to-muted/20"
-        style={{
-          maxHeight,
-          height: displayMode === "fullscreen" ? maxHeight : undefined,
-          overflow: "auto"
-        }}
-      >
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div
+      className="min-h-full bg-background"
+      style={{
+        maxHeight,
+        height: displayMode === "fullscreen" ? maxHeight : undefined,
+        overflow: "auto"
+      }}
+    >
+      <div className="p-4 space-y-4">
         {/* Header */}
-        <div className="space-y-2 fade-in">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 dark:from-amber-400 dark:via-amber-300 dark:to-amber-400 bg-clip-text text-transparent">
-              Little America Hotel
-            </h1>
-          </div>
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold text-foreground">
+            {isLoading ? "Searching..." : "Little America Hotel"}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            {isLoading ? "Loading hotel details..." : "Luxury Accommodations in Downtown Salt Lake City"}
+            {isLoading ? "Finding available hotels..." : "Luxury Accommodations in Downtown Salt Lake City"}
           </p>
         </div>
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24 fade-in">
-            <div className="relative">
-              <Loader2 className="animate-spin h-16 w-16 text-primary/40" />
-              <div className="absolute inset-0 blur-xl bg-primary/20 animate-pulse"></div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-6 animate-pulse">Searching for hotels...</p>
+          <div className="flex flex-col items-center justify-center py-16">
+            <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground mt-4">Searching for hotels...</p>
           </div>
         ) : hotels.length > 0 ? (
           <div
-            className="horizontal-scroll overflow-x-auto overflow-y-visible pb-6 -mx-6 px-6 fade-in"
+            className="overflow-x-auto pb-4 -mx-4 px-4"
             style={{
-              scrollBehavior: 'smooth',
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgb(203 213 225) transparent'
+              scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch'
             }}
           >
-            <div className="flex gap-5 w-max">
-              {hotels.map((hotel, index) => (
-                <Card
+            <div className="flex gap-4 w-max">
+              {hotels.map((hotel) => (
+                <div
                   key={hotel.hotel_id}
-                  className="hotel-card group relative hover:shadow-xl w-[360px] shrink-0 flex flex-col overflow-hidden border-0 bg-card/50 backdrop-blur-sm"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  className="w-80 shrink-0 rounded-xl border border-border bg-surface overflow-hidden"
+                  style={{ scrollSnapAlign: 'start' }}
                 >
+                  {/* Image */}
                   {hotel.HotelImages && hotel.HotelImages.length > 0 ? (
-                    <div className="image-container relative w-full h-52 bg-gradient-to-br from-muted to-muted/50">
+                    <div className="relative w-full h-48 bg-muted">
                       <img
                         src={hotel.HotelImages[0].cdnImageUrl}
-                        alt={hotel.hotel_name}
+                        alt={`Exterior view of ${hotel.hotel_name} showing the main building and entrance in ${hotel.location.city}, ${hotel.location.state}`}
                         className="absolute inset-0 w-full h-full object-cover"
                         loading="lazy"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      {/* Rating Badge */}
+                      <div className="absolute top-3 right-3">
+                        <Badge variant="soft" className="flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-current text-yellow-500" />
+                          <span>{hotel.rating.toFixed(1)}</span>
+                        </Badge>
+                      </div>
                     </div>
                   ) : (
-                    <div className="relative w-full h-52 bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-                      <Hotel className="w-12 h-12 text-muted-foreground/40" />
+                    <div className="relative w-full h-48 bg-muted flex items-center justify-center">
+                      <Hotel className="w-10 h-10 text-muted-foreground" />
                     </div>
                   )}
 
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm px-3 py-1.5 shadow-lg border border-amber-200/50 dark:border-amber-900/50">
-                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                    <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                      {hotel.rating.toFixed(1)}
-                    </span>
-                  </div>
-
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg leading-tight group-hover:text-primary transition-colors line-clamp-2">
+                  {/* Content */}
+                  <div className="p-4 space-y-3">
+                    <h2 className="font-semibold text-foreground leading-tight line-clamp-2">
                       {hotel.hotel_name}
-                    </CardTitle>
-                  </CardHeader>
+                    </h2>
 
-                  <CardContent className="space-y-3 pt-0">
-                    {/* Location */}
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="w-4 h-4 shrink-0" />
                       <span className="line-clamp-1">{hotel.location.city}, {hotel.location.state}</span>
                     </div>
 
-                    {/* Amenities */}
                     {hotel.amenities_text && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
                         {hotel.amenities_text}
                       </p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 text-center fade-in">
-            <div className="rounded-full bg-gradient-to-br from-muted to-muted/50 p-6 mb-6 shadow-inner">
-              <Hotel className="w-12 h-12 text-muted-foreground/60" />
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <Hotel className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No hotels found</h3>
-            <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
-              We couldn&apos;t find any hotels matching your search. Try adjusting your query or exploring different locations.
+            <h3 className="font-semibold text-foreground mb-1">No hotels found</h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              We couldn&apos;t find any hotels matching your search. Try adjusting your query.
             </p>
           </div>
         )}
-
-        {/* Powered by Hotelzify */}
-        <div className="flex justify-center items-center py-6 mt-8 border-t border-border/50">
-          <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
-            <span className="text-xs text-muted-foreground">Powered by</span>
-            <img
-              src="https://cdn.prod.website-files.com/665dbdf119ee43cd42be2657/665dfa4ae79bf116e4bb5ec0_Group%202745%402x-p-500.png"
-              alt="Hotelzify"
-              className="h-5 object-contain"
-            />
-          </div>
-        </div>
       </div>
     </div>
-    </>
   );
 }
