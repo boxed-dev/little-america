@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useWidgetProps, useMaxHeight, useDisplayMode, useRequestDisplayMode } from "../hooks";
-import { Badge } from "@openai/apps-sdk-ui/components/Badge";
-import { Button } from "@openai/apps-sdk-ui/components/Button";
 import { Calendar, Users, BedDouble, Loader2, Tag, Mail, Phone, User, X, Check } from "lucide-react";
 
 interface Pricing {
@@ -163,11 +161,11 @@ export default function RoomAvailabilityPage() {
           overflow: "auto"
         }}
       >
-        <div className="p-4 space-y-6">
+        <div className="p-5 space-y-5">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">
+            <div className="space-y-0.5">
+              <h1 className="text-lg font-semibold text-foreground tracking-tight">
                 {bookingConfirmed ? "Booking Confirmed" : "Complete Your Booking"}
               </h1>
               <p className="text-sm text-muted-foreground">
@@ -176,43 +174,43 @@ export default function RoomAvailabilityPage() {
             </div>
             <button
               onClick={handleCloseBooking}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors"
               aria-label="Close booking"
             >
-              <X className="w-5 h-5 text-muted-foreground" />
+              <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 
           {!bookingConfirmed ? (
             <>
               {/* Room Summary */}
-              <div className="p-4 rounded-xl border border-border bg-surface space-y-3">
+              <div className="p-4 rounded-2xl bg-muted/30 space-y-3">
                 <div>
-                  <h2 className="font-semibold text-foreground">{selectedBooking.room.roomName}</h2>
-                  <p className="text-sm text-muted-foreground">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
+                  <h2 className="font-medium text-foreground text-[15px]">{selectedBooking.room.roomName}</h2>
+                  <p className="text-[13px] text-muted-foreground">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-border">
-                  <span className="text-sm text-muted-foreground">Total Amount</span>
+                <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                  <span className="text-[13px] text-muted-foreground">Total Amount</span>
                   <div className="text-right">
-                    <p className="text-lg font-semibold text-foreground">
+                    <p className="text-base font-semibold text-foreground">
                       {selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}
                     </p>
                     {selectedBooking.pricing.originalPriceBeforeDiscount > selectedBooking.pricing.totalPriceForEntireStay && (
-                      <p className="text-xs text-muted-foreground line-through">
+                      <p className="text-[11px] text-muted-foreground/70 line-through">
                         {selectedBooking.room.currency} {selectedBooking.pricing.originalPriceBeforeDiscount.toFixed(0)}
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 pt-3 border-t border-border text-xs text-muted-foreground">
+                <div className="flex flex-wrap gap-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" />
+                    <Calendar className="w-3 h-3" />
                     <span>{formatDate(checkIn)} - {formatDate(checkOut)}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5" />
+                    <Users className="w-3 h-3" />
                     <span>{guests?.adults || 0} adults{guests?.children ? `, ${guests.children} children` : ''}</span>
                   </div>
                 </div>
@@ -220,9 +218,9 @@ export default function RoomAvailabilityPage() {
 
               {/* Form Fields */}
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground" />
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
                     Full Name
                   </label>
                   <input
@@ -230,18 +228,18 @@ export default function RoomAvailabilityPage() {
                     value={bookingForm.name}
                     onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
                     placeholder="John Doe"
-                    className={`w-full px-3 py-2.5 rounded-lg border text-foreground bg-background placeholder:text-muted-foreground ${
-                      formErrors.name ? 'border-red-500' : 'border-border'
-                    } focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary`}
+                    className={`w-full px-3 py-2 text-[14px] rounded-lg border text-foreground bg-background placeholder:text-muted-foreground/50 ${
+                      formErrors.name ? 'border-red-400' : 'border-border/60'
+                    } focus:outline-none focus:border-foreground/30 transition-colors`}
                   />
                   {formErrors.name && (
                     <p className="text-xs text-red-500">{formErrors.name}</p>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-muted-foreground" />
                     Email Address
                   </label>
                   <input
@@ -249,18 +247,18 @@ export default function RoomAvailabilityPage() {
                     value={bookingForm.email}
                     onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })}
                     placeholder="john@example.com"
-                    className={`w-full px-3 py-2.5 rounded-lg border text-foreground bg-background placeholder:text-muted-foreground ${
-                      formErrors.email ? 'border-red-500' : 'border-border'
-                    } focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary`}
+                    className={`w-full px-3 py-2 text-[14px] rounded-lg border text-foreground bg-background placeholder:text-muted-foreground/50 ${
+                      formErrors.email ? 'border-red-400' : 'border-border/60'
+                    } focus:outline-none focus:border-foreground/30 transition-colors`}
                   />
                   {formErrors.email && (
                     <p className="text-xs text-red-500">{formErrors.email}</p>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-muted-foreground" />
                     Phone Number
                   </label>
                   <input
@@ -268,9 +266,9 @@ export default function RoomAvailabilityPage() {
                     value={bookingForm.phone}
                     onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
                     placeholder="+1 (555) 123-4567"
-                    className={`w-full px-3 py-2.5 rounded-lg border text-foreground bg-background placeholder:text-muted-foreground ${
-                      formErrors.phone ? 'border-red-500' : 'border-border'
-                    } focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary`}
+                    className={`w-full px-3 py-2 text-[14px] rounded-lg border text-foreground bg-background placeholder:text-muted-foreground/50 ${
+                      formErrors.phone ? 'border-red-400' : 'border-border/60'
+                    } focus:outline-none focus:border-foreground/30 transition-colors`}
                   />
                   {formErrors.phone && (
                     <p className="text-xs text-red-500">{formErrors.phone}</p>
@@ -280,21 +278,17 @@ export default function RoomAvailabilityPage() {
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <Button
-                  variant="outline"
-                  color="secondary"
+                <button
                   onClick={handleCloseBooking}
                   disabled={isSubmitting}
-                  className="flex-1"
+                  className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border border-border text-foreground bg-background hover:bg-muted transition-colors disabled:opacity-50"
                 >
                   Cancel
-                </Button>
-                <Button
-                  variant="solid"
-                  color="primary"
+                </button>
+                <button
                   onClick={handleConfirmBooking}
                   disabled={isSubmitting}
-                  className="flex-1"
+                  className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
                     <>
@@ -304,7 +298,7 @@ export default function RoomAvailabilityPage() {
                   ) : (
                     'Confirm Booking'
                   )}
-                </Button>
+                </button>
               </div>
             </>
           ) : (
@@ -364,14 +358,12 @@ export default function RoomAvailabilityPage() {
                 </p>
               </div>
 
-              <Button
-                variant="solid"
-                color="primary"
+              <button
                 onClick={handleCloseBooking}
-                className="w-full"
+                className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
               >
                 Done
-              </Button>
+              </button>
             </div>
           )}
         </div>
@@ -403,16 +395,16 @@ export default function RoomAvailabilityPage() {
 
           {/* Booking Details */}
           {!isLoading && (
-            <div className="flex flex-wrap gap-3 text-sm">
-              <Badge variant="outline" className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>{formatDate(checkIn)} - {formatDate(checkOut)}</span>
-              </Badge>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 text-muted-foreground">
+                <Calendar className="w-3 h-3" />
+                {formatDate(checkIn)} - {formatDate(checkOut)}
+              </span>
               {guests && (
-                <Badge variant="outline" className="flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" />
-                  <span>{guests.adults + guests.children} guests</span>
-                </Badge>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 text-muted-foreground">
+                  <Users className="w-3 h-3" />
+                  {guests.adults + guests.children} guests
+                </span>
               )}
             </div>
           )}
@@ -444,93 +436,88 @@ export default function RoomAvailabilityPage() {
                 return (
                   <div
                     key={room.id}
-                    className="w-80 shrink-0 rounded-xl border border-border bg-surface overflow-hidden"
+                    className="w-72 shrink-0 rounded-2xl bg-surface overflow-hidden shadow-sm"
                     style={{ scrollSnapAlign: 'start' }}
                   >
                     {/* Image */}
                     {room.images && room.images[0] ? (
-                      <div className="relative w-full h-48 bg-muted">
+                      <div className="relative w-full h-44">
                         <img
                           src={room.images[0]}
-                          alt={`Interior view of ${room.roomName} at ${hotelName} showing the bed, furniture, and room amenities`}
+                          alt={room.roomName}
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
-                        <div className="absolute top-3 right-3">
-                          <Badge variant="solid" color="success">
-                            {room.availableRooms} left
-                          </Badge>
-                        </div>
+                        <span className="absolute top-2.5 right-2.5 px-2 py-0.5 text-xs font-medium rounded-full bg-green-600 text-white">
+                          {room.availableRooms} left
+                        </span>
                       </div>
                     ) : (
-                      <div className="relative w-full h-48 bg-muted flex items-center justify-center">
-                        <BedDouble className="w-10 h-10 text-muted-foreground" />
+                      <div className="relative w-full h-44 bg-muted/50 flex items-center justify-center">
+                        <BedDouble className="w-8 h-8 text-muted-foreground/40" />
                       </div>
                     )}
 
                     {/* Content */}
-                    <div className="p-4 space-y-3">
+                    <div className="p-3.5 space-y-2.5">
                       <div>
-                        <h2 className="font-semibold text-foreground">{room.roomName}</h2>
+                        <h2 className="font-medium text-foreground text-[15px] leading-snug">{room.roomName}</h2>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                          <Users className="w-3.5 h-3.5" />
+                          <Users className="w-3 h-3" />
                           <span>Up to {room.maxAdultCount} adults, {room.maxChildCount} children</span>
                         </div>
                       </div>
 
                       {/* Amenities */}
                       {room.amenities && room.amenities.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-1">
                           {room.amenities.slice(0, 4).map((amenity, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
+                            <span key={idx} className="px-2 py-0.5 text-xs rounded-full bg-muted/50 text-muted-foreground">
                               {amenity}
-                            </Badge>
+                            </span>
                           ))}
                         </div>
                       )}
 
                       {/* Pricing */}
-                      <div className="pt-3 border-t border-border space-y-3">
+                      <div className="pt-2.5 border-t border-border/50 space-y-2.5">
                         <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-foreground">
+                          <div className="space-y-0.5">
+                            <p className="text-[13px] font-medium text-foreground">
                               {bestPrice.useOnlyForDisplayRatePlanName}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground/80">
                               {room.currency} {bestPrice.roomPricePerNight.toFixed(0)} x {room.nights || 1} night{(room.nights || 1) !== 1 ? 's' : ''}
                             </p>
                             {hasMultiplePlans && (
                               <p className="text-xs text-green-600 dark:text-green-400">
-                                Best Rate - {room.pricing.length} plans available
+                                Best Rate
                               </p>
                             )}
                           </div>
                           <div className="text-right">
                             {discount > 0 && (
-                              <Badge variant="solid" color="success" className="mb-1">
-                                <Tag className="w-3 h-3 mr-1" />
+                              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 mb-0.5">
                                 {discount}% OFF
-                              </Badge>
+                              </span>
                             )}
-                            <p className="text-lg font-semibold text-foreground">
+                            <p className="text-base font-semibold text-foreground">
                               {room.currency} {bestPrice.totalPriceForEntireStay.toFixed(0)}
                             </p>
                             {bestPrice.originalPriceBeforeDiscount > bestPrice.totalPriceForEntireStay && (
-                              <p className="text-xs text-muted-foreground line-through">
+                              <p className="text-[11px] text-muted-foreground/70 line-through">
                                 {room.currency} {bestPrice.originalPriceBeforeDiscount.toFixed(0)}
                               </p>
                             )}
                           </div>
                         </div>
 
-                        <Button
-                          variant="solid"
-                          color="primary"
+                        <button
                           onClick={() => handleBookNow(room, bestPrice)}
-                          className="w-full"
+                          className="w-full px-3 py-2 text-[13px] font-medium rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
                         >
                           Book Now
-                        </Button>
+                        </button>
                       </div>
                     </div>
                   </div>
