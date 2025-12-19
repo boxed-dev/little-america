@@ -22,6 +22,7 @@ interface HotelSearchData extends Record<string, unknown> {
   query?: string;
   hotels?: Hotel[];
   count?: number;
+  chainName?: string;
 }
 
 export default function HotelSearchPage() {
@@ -30,6 +31,7 @@ export default function HotelSearchPage() {
   const displayMode = useDisplayMode();
 
   const hotels = toolOutput?.hotels || [];
+  const chainName = toolOutput?.chainName || "Hotels";
 
   const isLoading = !toolOutput || toolOutput.count === undefined;
 
@@ -46,10 +48,10 @@ export default function HotelSearchPage() {
         {/* Header */}
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-foreground">
-            {isLoading ? "Searching..." : "Little America Hotel"}
+            {isLoading ? "Searching..." : chainName}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isLoading ? "Finding available hotels..." : "Luxury Accommodations in Downtown Salt Lake City"}
+            {isLoading ? "Finding available hotels..." : `${hotels.length} hotel${hotels.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
 

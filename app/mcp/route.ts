@@ -28,126 +28,91 @@ function widgetMeta(widget: ContentWidget) {
   } as const;
 }
 
-// Hardcoded Little America Hotel Data
-const LITTLE_AMERICA_DATA = {
-  hotel_id: 1,
-  hotel_name: "Little America Hotel",
-  rating: 4.8,
+// Chain ID for Sterling Resorts
+const CHAIN_ID = "1";
+
+interface ChainHotel {
+  id: number;
+  name: string;
+  city: string;
+  state: string;
+  country: string;
+  address: string;
+  rating: number;
+  hotelHighlight: string;
+  HotelImages?: { cdnImageUrl: string }[];
+}
+
+interface ChainApiResponse {
+  status: number;
+  data: {
+    chain: {
+      id: number;
+      name: string;
+    };
+    hotels: ChainHotel[];
+  };
+}
+
+interface SearchHotel {
+  hotel_id: number;
+  hotel_name: string;
+  rating: number;
   location: {
-    address: "500 S Main St",
-    city: "Salt Lake City",
-    state: "Utah",
-  },
-  amenities_text: "Free WiFi, Outdoor Pool, Fitness Center, Restaurant, Room Service, Parking, Business Center, Concierge",
-  search_score: 0.95,
-  HotelImages: [
-    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1697-Edit-V1-1024x683.jpg" },
-    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-1966-FV1-1024x681.jpg" },
-    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1532-RGB-V1-1024x682.jpg" },
-    { cdnImageUrl: "https://saltlake.littleamerica.com/wp-content/uploads/2024/06/LASL-Garden-Lodge-Exteriors-IMG_1689-Edited-V4-1024x682.jpg" },
-  ]
-};
+    address: string;
+    city: string;
+    state: string;
+  };
+  amenities_text: string;
+  search_score: number;
+}
 
-const LITTLE_AMERICA_ROOMS = [
-  {
-    roomName: "Tower King Room",
-    id: 101,
-    maxAdultCount: 2,
-    maxChildCount: 2,
-    maxInfantCount: 1,
-    currency: "USD",
-    amenities: ["King Bed", "Mountain View", "French Richelieu Furniture", "Free WiFi", "Work Desk", "Coffee Maker", "600 sq ft"],
-    images: [
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1697-Edit-V1-1024x683.jpg",
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1698-Edit-V1-1024x683.jpg",
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Tower_King_1106-1723-Edit-V1-1024x681.jpg"
-    ],
-    pricing: [
-      {
-        totalPriceForEntireStay: 450,
-        roomPricePerNight: 150,
-        originalPriceBeforeDiscount: 500,
-        useOnlyForDisplayRatePlanName: "Best Available Rate",
-        ratePlanName: "BAR"
-      },
-      {
-        totalPriceForEntireStay: 480,
-        roomPricePerNight: 160,
-        originalPriceBeforeDiscount: 520,
-        useOnlyForDisplayRatePlanName: "Flexible Rate - Free Cancellation",
-        ratePlanName: "FLEXIBLE"
-      }
-    ],
-    availableRooms: 5,
-    nights: 3
-  },
-  {
-    roomName: "Garden Premium Room",
-    id: 102,
-    maxAdultCount: 4,
-    maxChildCount: 2,
-    maxInfantCount: 1,
-    currency: "USD",
-    amenities: ["King or 2 Queens", "English Wool Carpets", "Garden View", "Free WiFi", "Work Desk", "Coffee Maker", "500 sq ft"],
-    images: [
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-1966-FV1-1024x681.jpg",
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-1998-Edit-V1-1024x683.jpg",
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/Garden_Premium_King_8108-2028-Edit-V1-1024x668.jpg"
-    ],
-    pricing: [
-      {
-        totalPriceForEntireStay: 750,
-        roomPricePerNight: 250,
-        originalPriceBeforeDiscount: 900,
-        useOnlyForDisplayRatePlanName: "Suite Special",
-        ratePlanName: "SUITE_SPECIAL"
-      }
-    ],
-    availableRooms: 3,
-    nights: 3
-  },
-  {
-    roomName: "Presidential Suite",
-    id: 103,
-    maxAdultCount: 2,
-    maxChildCount: 0,
-    maxInfantCount: 0,
-    currency: "USD",
-    amenities: ["King Bed", "Penthouse Views", "Private Balcony", "Dining Room", "Family Room", "Free WiFi", "1,200 sq ft"],
-    images: [
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1532-RGB-V1-1024x682.jpg",
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1408-RGB-V1-1024x677.jpg",
-      "https://saltlake.littleamerica.com/wp-content/uploads/2025/03/LAS_Presidential_Suite_2025-1494-RGB_V1-1024x682.jpg"
-    ],
-    pricing: [
-      {
-        totalPriceForEntireStay: 1350,
-        roomPricePerNight: 450,
-        originalPriceBeforeDiscount: 1500,
-        useOnlyForDisplayRatePlanName: "Presidential Suite Rate",
-        ratePlanName: "PRESIDENTIAL"
-      }
-    ],
-    availableRooms: 1,
-    nights: 3
-  }
-];
+interface SearchApiResponse {
+  hotels: SearchHotel[];
+  total_results: number;
+  query: string;
+}
 
-// Sample Q&A data for Little America
-const LITTLE_AMERICA_QA = {
-  "what amenities": "Little America Hotel offers a wide range of amenities including: Free WiFi throughout the property, Outdoor heated pool and hot tub, State-of-the-art fitness center, On-site restaurant and lounge, 24-hour room service, Complimentary parking, Business center with meeting rooms, and Concierge services.",
-  "check-in time": "Check-in time at Little America Hotel is 3:00 PM and check-out time is 12:00 PM (noon). Early check-in and late check-out may be available upon request, subject to availability.",
-  "parking": "Little America Hotel offers complimentary self-parking for all guests. Valet parking is also available for an additional fee of $15 per day.",
-  "pet policy": "Yes, Little America Hotel is pet-friendly! We welcome dogs up to 50 lbs with a one-time pet fee of $50. Pets must be kept on a leash in public areas and cannot be left unattended in rooms.",
-  "dining options": "The hotel features 'The Garden Restaurant' serving breakfast, lunch, and dinner with American cuisine. The 'Little America Lounge' offers cocktails and light bites in the evening. Room service is available 24/7.",
-  "pool": "Our outdoor heated pool is open year-round from 6:00 AM to 10:00 PM. We also have a hot tub adjacent to the pool area. Pool towels are provided.",
-  "wifi": "Complimentary high-speed WiFi is available throughout the entire hotel, including all guest rooms, public spaces, and meeting areas.",
-  "airport": "Little America Hotel is located approximately 8 miles from Salt Lake City International Airport, about a 15-minute drive. Airport shuttle service is available for $25 per person round-trip with advance reservation.",
-  "downtown": "The hotel is conveniently located in downtown Salt Lake City, walking distance to Temple Square (0.5 miles), City Creek Center shopping (0.3 miles), and the Salt Palace Convention Center (0.8 miles).",
-  "cancellation": "Our standard cancellation policy requires 48 hours notice prior to arrival for a full refund. Some special rates may have different cancellation policies, which will be specified at the time of booking."
-};
+interface RoomPricing {
+  totalPriceForEntireStay: number;
+  roomPricePerNight: number;
+  originalPriceBeforeDiscount: number;
+  useOnlyForDisplayRatePlanName: string;
+  ratePlanName: string;
+}
+
+interface RoomData {
+  roomName: string;
+  id: number;
+  maxAdultCount: number;
+  maxChildCount: number;
+  maxInfantCount: number;
+  currency: string;
+  amenities: string[];
+  images: string[];
+  pricing: RoomPricing[];
+  availableRooms: number;
+  nights: number;
+}
+
+interface AvailabilityApiResponse {
+  status: number;
+  data: RoomData[] | { nextAvailablePastCheckInDate?: string; nextAvailableFutureCheckInDate?: string }[];
+}
 
 const handler = createMcpHandler(async (server) => {
+  // Fetch chain hotels data for image lookup
+  let chainHotels: ChainHotel[] = [];
+  let chainName = "Sterling Resorts";
+  try {
+    const chainRes = await fetch(`https://api.hotelzify.com/hotel/v2/hotel/chain-hotels-lite-v2?chainId=${CHAIN_ID}`);
+    const chainData: ChainApiResponse = await chainRes.json();
+    chainHotels = chainData.data?.hotels || [];
+    chainName = chainData.data?.chain?.name || "Sterling Resorts";
+  } catch (e) {
+    console.error("Failed to fetch chain hotels:", e);
+  }
+
   // Hotel Search Widget
   const hotelSearchHtml = await getAppsSdkCompatibleHtml(baseURL, "/hotel-search");
   const hotelSearchWidget: ContentWidget = {
@@ -193,32 +158,62 @@ const handler = createMcpHandler(async (server) => {
     hotelSearchWidget.id,
     {
       title: hotelSearchWidget.title,
-      description: "Search for Little America Hotel",
+      description: `Search for hotels in the ${chainName} chain`,
       inputSchema: {
-        query: z.string().optional().default("Little America").describe("Search query (always returns Little America Hotel)"),
-        chain_id: z.string().optional().default("1").describe("Hotel chain ID"),
-        k: z.number().optional().default(1).describe("Maximum number of results"),
+        query: z.string().describe("Search query (e.g., 'hotels in Kerala', 'beach resorts')"),
+        k: z.number().optional().default(5).describe("Maximum number of results"),
       },
       _meta: widgetMeta(hotelSearchWidget),
     },
-    async ({ query = "Little America" }: { query?: string; chain_id?: string; k?: number }) => {
-      // Return hardcoded Little America hotel data
-      const hotels = [LITTLE_AMERICA_DATA];
+    async ({ query, k = 5 }: { query: string; k?: number }) => {
+      try {
+        // Call the search API
+        const searchRes = await fetch("https://chatapi.hotelzify.com/search/hotels", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, chain_id: CHAIN_ID, k }),
+        });
+        const searchData: SearchApiResponse = await searchRes.json();
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Found Little America Hotel in Salt Lake City, Utah`,
+        // Merge with hotel images from chain data
+        const hotels = searchData.hotels.map((hotel) => {
+          const chainHotel = chainHotels.find((ch) => ch.id === hotel.hotel_id);
+          return {
+            hotel_id: hotel.hotel_id,
+            hotel_name: hotel.hotel_name,
+            rating: hotel.rating || chainHotel?.rating || 0,
+            location: hotel.location,
+            amenities_text: hotel.amenities_text,
+            search_score: hotel.search_score,
+            HotelImages: chainHotel?.HotelImages?.filter(img =>
+              img.cdnImageUrl && !img.cdnImageUrl.endsWith('chatbot-converted-images')
+            ) || [],
+          };
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Found ${hotels.length} hotel${hotels.length !== 1 ? 's' : ''} matching "${query}"`,
+            },
+          ],
+          structuredContent: {
+            query,
+            hotels,
+            count: hotels.length,
+            chainName,
           },
-        ],
-        structuredContent: {
-          query,
-          hotels,
-          count: 1,
-        },
-        _meta: widgetMeta(hotelSearchWidget),
-      };
+          _meta: widgetMeta(hotelSearchWidget),
+        };
+      } catch (error) {
+        console.error("Search error:", error);
+        return {
+          content: [{ type: "text", text: `Error searching hotels: ${error instanceof Error ? error.message : "Unknown error"}` }],
+          structuredContent: { error: true, query, hotels: [], count: 0, chainName },
+          _meta: widgetMeta(hotelSearchWidget),
+        };
+      }
     }
   );
 
@@ -267,9 +262,10 @@ const handler = createMcpHandler(async (server) => {
     roomAvailabilityWidget.id,
     {
       title: roomAvailabilityWidget.title,
-      description: "Check room availability and pricing for Little America Hotel",
+      description: "Check room availability and pricing for a hotel",
       inputSchema: {
-        hotelId: z.string().optional().default("1").describe("Hotel ID (Little America)"),
+        hotelId: z.string().describe("Hotel ID"),
+        hotelName: z.string().optional().describe("Hotel name for display"),
         checkInDate: z.string().describe("Check-in date (YYYY-MM-DD)"),
         checkOutDate: z.string().describe("Check-out date (YYYY-MM-DD)"),
         adults: z.number().optional().default(2).describe("Number of adults"),
@@ -278,85 +274,65 @@ const handler = createMcpHandler(async (server) => {
       },
       _meta: widgetMeta(roomAvailabilityWidget),
     },
-    async ({ hotelId = "1", checkInDate, checkOutDate, adults = 2, children = 0, infants = 0 }: { hotelId?: string; checkInDate: string; checkOutDate: string; adults?: number; children?: number; infants?: number }) => {
-      // Calculate nights between dates
-      const checkIn = new Date(checkInDate);
-      const checkOut = new Date(checkOutDate);
-      const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    async ({ hotelId, hotelName, checkInDate, checkOutDate, adults = 2, children = 0, infants = 0 }: { hotelId: string; hotelName?: string; checkInDate: string; checkOutDate: string; adults?: number; children?: number; infants?: number }) => {
+      try {
+        // Look up hotel name from chain data if not provided
+        const resolvedHotelName = hotelName || chainHotels.find(h => h.id.toString() === hotelId)?.name || "Hotel";
 
-      // Adjust pricing based on number of nights
-      const rooms = LITTLE_AMERICA_ROOMS.map(room => ({
-        ...room,
-        nights,
-        pricing: room.pricing.map(price => ({
-          ...price,
-          totalPriceForEntireStay: price.roomPricePerNight * nights,
-          originalPriceBeforeDiscount: (price.originalPriceBeforeDiscount / 3) * nights,
-        }))
-      }));
+        // Call the availability API
+        const totalGuest = adults + children + infants;
+        const availRes = await fetch("https://api.hotelzify.com/hotel/v1/hotel/chatbot-availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            hotelId,
+            checkInDate,
+            checkOutDate,
+            adults,
+            children,
+            infants,
+            totalGuest,
+          }),
+        });
+        const availData: AvailabilityApiResponse = await availRes.json();
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Found ${rooms.length} available rooms at Little America Hotel for ${nights} night${nights !== 1 ? 's' : ''}`,
+        // Check if we got rooms or just next available dates
+        const rooms = Array.isArray(availData.data) && availData.data.length > 0 && 'roomName' in availData.data[0]
+          ? availData.data as RoomData[]
+          : [];
+
+        const checkIn = new Date(checkInDate);
+        const checkOut = new Date(checkOutDate);
+        const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: rooms.length > 0
+                ? `Found ${rooms.length} available room${rooms.length !== 1 ? 's' : ''} at ${resolvedHotelName} for ${nights} night${nights !== 1 ? 's' : ''}`
+                : `No rooms available at ${resolvedHotelName} for the selected dates`,
+            },
+          ],
+          structuredContent: {
+            hotelId,
+            hotelName: resolvedHotelName,
+            checkInDate,
+            checkOutDate,
+            guests: { adults, children, infants },
+            rooms,
+            available: rooms.length > 0,
           },
-        ],
-        structuredContent: {
-          hotelId,
-          checkInDate,
-          checkOutDate,
-          guests: { adults, children, infants },
-          rooms,
-          available: true,
-        },
-        _meta: widgetMeta(roomAvailabilityWidget),
-      };
-    }
-  );
-
-  // Query Tool - Answer questions about Little America Hotel
-  server.registerTool(
-    "query_hotel_info",
-    {
-      title: "Query Hotel Information",
-      description: "Answer questions about Little America Hotel amenities, policies, and services",
-      inputSchema: {
-        question: z.string().describe("Question about the hotel (e.g., 'What are the check-in times?', 'Is there parking?')"),
-      },
-    },
-    async ({ question }: { question: string }) => {
-      const lowerQuestion = question.toLowerCase();
-
-      // Find matching answer based on keywords
-      let answer = "I don't have specific information about that. Please contact Little America Hotel directly at (801) 363-6781 for assistance.";
-
-      for (const [keywords, response] of Object.entries(LITTLE_AMERICA_QA)) {
-        if (lowerQuestion.includes(keywords)) {
-          answer = response;
-          break;
-        }
+          _meta: widgetMeta(roomAvailabilityWidget),
+        };
+      } catch (error) {
+        console.error("Availability error:", error);
+        return {
+          content: [{ type: "text", text: `Error checking availability: ${error instanceof Error ? error.message : "Unknown error"}` }],
+          structuredContent: { error: true, hotelId, hotelName: hotelName || "Hotel", rooms: [], available: false },
+          _meta: widgetMeta(roomAvailabilityWidget),
+        };
       }
-
-      // Additional keyword matching
-      if (lowerQuestion.includes("restaurant") || lowerQuestion.includes("food") || lowerQuestion.includes("breakfast")) {
-        answer = LITTLE_AMERICA_QA["dining options"];
-      } else if (lowerQuestion.includes("check") && (lowerQuestion.includes("in") || lowerQuestion.includes("out"))) {
-        answer = LITTLE_AMERICA_QA["check-in time"];
-      } else if (lowerQuestion.includes("pet") || lowerQuestion.includes("dog") || lowerQuestion.includes("cat")) {
-        answer = LITTLE_AMERICA_QA["pet policy"];
-      } else if (lowerQuestion.includes("location") || lowerQuestion.includes("where") || lowerQuestion.includes("address")) {
-        answer = `Little America Hotel is located at 500 S Main St, Salt Lake City, Utah. ${LITTLE_AMERICA_QA["downtown"]}`;
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: answer,
-          },
-        ],
-      };
     }
   );
 });

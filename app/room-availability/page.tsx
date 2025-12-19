@@ -30,6 +30,7 @@ interface Room {
 
 interface RoomAvailabilityData extends Record<string, unknown> {
   hotelId?: string;
+  hotelName?: string;
   checkInDate?: string;
   checkOutDate?: string;
   guests?: {
@@ -62,6 +63,7 @@ export default function RoomAvailabilityPage() {
   const checkOut = toolOutput?.checkOutDate || "";
   const guests = toolOutput?.guests;
   const rooms = toolOutput?.rooms || [];
+  const hotelName = toolOutput?.hotelName || "Hotel";
 
   const isLoading = !toolOutput || !toolOutput.hotelId;
 
@@ -395,7 +397,7 @@ export default function RoomAvailabilityPage() {
               {isLoading ? "Checking Availability" : "Available Rooms"}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isLoading ? "Finding available rooms..." : "Little America Hotel"}
+              {isLoading ? "Finding available rooms..." : hotelName}
             </p>
           </div>
 
@@ -450,7 +452,7 @@ export default function RoomAvailabilityPage() {
                       <div className="relative w-full h-48 bg-muted">
                         <img
                           src={room.images[0]}
-                          alt={`Interior view of ${room.roomName} at Little America Hotel showing the bed, furniture, and room amenities`}
+                          alt={`Interior view of ${room.roomName} at ${hotelName} showing the bed, furniture, and room amenities`}
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
