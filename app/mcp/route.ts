@@ -100,6 +100,33 @@ interface AvailabilityApiResponse {
   data: RoomData[] | { nextAvailablePastCheckInDate?: string; nextAvailableFutureCheckInDate?: string }[];
 }
 
+interface BookingPayload {
+  hotelId: string;
+  name: string;
+  email: string;
+  dialCode: string;
+  mobile: string;
+  checkInDate: string;
+  checkOutDate: string;
+  adults: number;
+  children: number;
+  infants: number;
+  totalGuests: number;
+  applyExtraDiscount: boolean;
+  hotelRooms: { name: string; ratePlanName: string }[];
+}
+
+interface BookingApiResponse {
+  status: number;
+  data?: {
+    bookingId: string;
+    [key: string]: unknown;
+  };
+  message?: string;
+}
+
+const BOOKING_API_TOKEN = process.env.HOTELZIFY_BOOKING_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjExNzE5LCJyb2xlIjo0LCJyb2xlcyI6IkFETUlOIiwiaG90ZWxJZHMiOlsyMDQ0LDM2NDUsMzY1MF0sImlhdCI6MTczMDgxMDM2OSwiZXhwIjoyMzM1NjEwMzY5fQ.q0jlQKIg6fWonaNrFaVzAJDPu6uP_cwuFmmw4eX11V8";
+
 const handler = createMcpHandler(async (server) => {
   // Fetch chain hotels data for image lookup
   let chainHotels: ChainHotel[] = [];
@@ -331,6 +358,113 @@ const handler = createMcpHandler(async (server) => {
           content: [{ type: "text", text: `Error checking availability: ${error instanceof Error ? error.message : "Unknown error"}` }],
           structuredContent: { error: true, hotelId, hotelName: hotelName || "Hotel", rooms: [], available: false },
           _meta: widgetMeta(roomAvailabilityWidget),
+        };
+      }
+    }
+  );
+
+  // Book Room Tool (no widget - returns confirmation data)
+  server.registerTool(
+    "book_room",
+    {
+      title: "Book Room",
+      description: "Book a hotel room with guest details",
+      inputSchema: {
+        hotelId: z.string().describe("Hotel ID"),
+        hotelName: z.string().optional().describe("Hotel name"),
+        roomName: z.string().describe("Room name"),
+        ratePlanName: z.string().describe("Rate plan name"),
+        checkInDate: z.string().describe("Check-in date (YYYY-MM-DD)"),
+        checkOutDate: z.string().describe("Check-out date (YYYY-MM-DD)"),
+        guestName: z.string().describe("Guest full name"),
+        guestEmail: z.string().email().describe("Guest email address"),
+        guestPhone: z.string().describe("Guest phone number with country code (e.g., +91 9876543210)"),
+        adults: z.number().optional().default(2).describe("Number of adults"),
+        children: z.number().optional().default(0).describe("Number of children"),
+        infants: z.number().optional().default(0).describe("Number of infants"),
+      },
+    },
+    async ({ hotelId, hotelName, roomName, ratePlanName, checkInDate, checkOutDate, guestName, guestEmail, guestPhone, adults = 2, children = 0, infants = 0 }: {
+      hotelId: string;
+      hotelName?: string;
+      roomName: string;
+      ratePlanName: string;
+      checkInDate: string;
+      checkOutDate: string;
+      guestName: string;
+      guestEmail: string;
+      guestPhone: string;
+      adults?: number;
+      children?: number;
+      infants?: number;
+    }) => {
+      try {
+        // Parse phone number to extract dial code and mobile
+        const cleanPhone = guestPhone.replace(/[\s\-()]/g, '');
+        const dialCodeMatch = cleanPhone.match(/^(\+\d{1,3})/);
+        const dialCode = dialCodeMatch ? dialCodeMatch[1] : '+91';
+        const mobile = cleanPhone.replace(/^\+\d{1,3}/, '');
+
+        const resolvedHotelName = hotelName || chainHotels.find(h => h.id.toString() === hotelId)?.name || "Hotel";
+
+        const bookingPayload: BookingPayload = {
+          hotelId,
+          name: guestName,
+          email: guestEmail,
+          dialCode,
+          mobile,
+          checkInDate,
+          checkOutDate,
+          adults,
+          children,
+          infants,
+          totalGuests: adults + children,
+          applyExtraDiscount: false,
+          hotelRooms: [{ name: roomName, ratePlanName }]
+        };
+
+        const response = await fetch('https://api.hotelzify.com/hotel/authorised/v1/bookings/chatbot', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${BOOKING_API_TOKEN}`
+          },
+          body: JSON.stringify(bookingPayload)
+        });
+
+        const result: BookingApiResponse = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || 'Booking failed');
+        }
+
+        const bookingId = result.data?.bookingId || `BK${Date.now()}`;
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Booking confirmed! Booking ID: ${bookingId}. ${guestName} has successfully booked ${roomName} at ${resolvedHotelName} for ${checkInDate} to ${checkOutDate}. Confirmation sent to ${guestEmail}.`,
+            },
+          ],
+          structuredContent: {
+            success: true,
+            bookingId,
+            hotelId,
+            hotelName: resolvedHotelName,
+            roomName,
+            ratePlanName,
+            checkInDate,
+            checkOutDate,
+            guest: { name: guestName, email: guestEmail, phone: guestPhone },
+            guests: { adults, children, infants },
+          },
+        };
+      } catch (error) {
+        console.error("Booking error:", error);
+        return {
+          content: [{ type: "text", text: `Booking failed: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.` }],
+          structuredContent: { success: false, error: error instanceof Error ? error.message : "Unknown error" },
         };
       }
     }

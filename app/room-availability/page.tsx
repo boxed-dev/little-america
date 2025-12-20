@@ -40,6 +40,12 @@ interface RoomAvailabilityData extends Record<string, unknown> {
   available?: boolean;
 }
 
+interface BookingApiResponse {
+  success: boolean;
+  bookingId?: string;
+  error?: string;
+}
+
 interface BookingFormData {
   name: string;
   email: string;
@@ -65,6 +71,8 @@ export default function RoomAvailabilityPage() {
 
   const isLoading = !toolOutput || !toolOutput.hotelId;
 
+  const hotelId = toolOutput?.hotelId || "";
+
   // Booking state
   const [isBookingMode, setIsBookingMode] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<SelectedBooking | null>(null);
@@ -77,6 +85,7 @@ export default function RoomAvailabilityPage() {
   const [bookingId, setBookingId] = useState("");
   const [formErrors, setFormErrors] = useState<Partial<BookingFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
@@ -126,16 +135,41 @@ export default function RoomAvailabilityPage() {
     if (!validateForm() || !selectedBooking) return;
 
     setIsSubmitting(true);
+    setBookingError(null);
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const response = await fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotelId,
+          name: bookingForm.name,
+          email: bookingForm.email,
+          phone: bookingForm.phone,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          adults: guests?.adults || 2,
+          children: guests?.children || 0,
+          infants: guests?.infants || 0,
+          roomName: selectedBooking.room.roomName,
+          ratePlanName: selectedBooking.pricing.ratePlanName
+        })
+      });
 
-    const timestamp = Date.now();
-    const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const generatedBookingId = `LA-${timestamp.toString().slice(-6)}-${randomPart}`;
+      const result: BookingApiResponse = await response.json();
 
-    setBookingId(generatedBookingId);
-    setBookingConfirmed(true);
-    setIsSubmitting(false);
+      if (!result.success) {
+        throw new Error(result.error || 'Booking failed');
+      }
+
+      setBookingId(result.bookingId || `BK${Date.now()}`);
+      setBookingConfirmed(true);
+    } catch (error) {
+      console.error('Booking error:', error);
+      setBookingError(error instanceof Error ? error.message : 'Booking failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCloseBooking = async () => {
@@ -145,6 +179,7 @@ export default function RoomAvailabilityPage() {
     setBookingConfirmed(false);
     setFormErrors({});
     setIsSubmitting(false);
+    setBookingError(null);
 
     // Return to inline mode
     await requestDisplayMode("inline");
@@ -275,6 +310,13 @@ export default function RoomAvailabilityPage() {
                   )}
                 </div>
               </div>
+
+              {/* Error Display */}
+              {bookingError && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-600 dark:text-red-400">{bookingError}</p>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
