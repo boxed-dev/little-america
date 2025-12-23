@@ -1,5 +1,6 @@
 import { baseURL } from "@/baseUrl";
 import { createMcpHandler } from "mcp-handler";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 
 const getAppsSdkCompatibleHtml = async (baseUrl: string, path: string) => {
@@ -28,8 +29,8 @@ function widgetMeta(widget: ContentWidget) {
   } as const;
 }
 
-// Chain ID for Sterling Resorts
-const CHAIN_ID = "1";
+// Default Chain ID
+const DEFAULT_CHAIN_ID = "1";
 
 interface ChainHotel {
   id: number;
@@ -127,15 +128,15 @@ interface BookingApiResponse {
 
 const BOOKING_API_TOKEN = process.env.HOTELZIFY_BOOKING_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjExNzE5LCJyb2xlIjo0LCJyb2xlcyI6IkFETUlOIiwiaG90ZWxJZHMiOlsyMDQ0LDM2NDUsMzY1MF0sImlhdCI6MTczMDgxMDM2OSwiZXhwIjoyMzM1NjEwMzY5fQ.q0jlQKIg6fWonaNrFaVzAJDPu6uP_cwuFmmw4eX11V8";
 
-const handler = createMcpHandler(async (server) => {
+const createHandler = (chainId: string) => createMcpHandler(async (server) => {
   // Fetch chain hotels data for image lookup
   let chainHotels: ChainHotel[] = [];
-  let chainName = "Sterling Resorts";
+  let chainName = "Hotel Chain";
   try {
-    const chainRes = await fetch(`https://api.hotelzify.com/hotel/v2/hotel/chain-hotels-lite-v2?chainId=${CHAIN_ID}`);
+    const chainRes = await fetch(`https://api.hotelzify.com/hotel/v2/hotel/chain-hotels-lite-v2?chainId=${chainId}`);
     const chainData: ChainApiResponse = await chainRes.json();
     chainHotels = chainData.data?.hotels || [];
-    chainName = chainData.data?.chain?.name || "Sterling Resorts";
+    chainName = chainData.data?.chain?.name || "Hotel Chain";
   } catch (e) {
     console.error("Failed to fetch chain hotels:", e);
   }
@@ -198,7 +199,7 @@ const handler = createMcpHandler(async (server) => {
         const searchRes = await fetch("https://chatapi.hotelzify.com/search/hotels", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, chain_id: CHAIN_ID, k }),
+          body: JSON.stringify({ query, chain_id: chainId, k }),
         });
         const searchData: SearchApiResponse = await searchRes.json();
 
@@ -471,5 +472,24 @@ const handler = createMcpHandler(async (server) => {
   );
 });
 
-export const GET = handler;
-export const POST = handler;
+// Cache handlers by chainId
+const handlerCache = new Map<string, ReturnType<typeof createHandler>>();
+
+function getHandler(chainId: string) {
+  if (!handlerCache.has(chainId)) {
+    handlerCache.set(chainId, createHandler(chainId));
+  }
+  return handlerCache.get(chainId)!;
+}
+
+export async function GET(request: NextRequest) {
+  const chainId = request.nextUrl.searchParams.get("chainId") || DEFAULT_CHAIN_ID;
+  const handler = getHandler(chainId);
+  return handler(request);
+}
+
+export async function POST(request: NextRequest) {
+  const chainId = request.nextUrl.searchParams.get("chainId") || DEFAULT_CHAIN_ID;
+  const handler = getHandler(chainId);
+  return handler(request);
+}
