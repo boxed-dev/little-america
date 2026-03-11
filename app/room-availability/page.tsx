@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useWidgetProps, useMaxHeight, useDisplayMode, useRequestDisplayMode } from "../hooks";
-import { Calendar, Users, BedDouble, Loader2, Tag, Mail, Phone, User, X, Check } from "lucide-react";
+import { Calendar, Users, BedDouble, Loader2, Mail, Phone, User, X, Check } from "lucide-react";
 
 interface Pricing {
   totalPriceForEntireStay: number;
@@ -91,11 +91,6 @@ export default function RoomAvailabilityPage() {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  };
-
-  const calculateDiscount = (original: number, final: number) => {
-    if (original <= final) return 0;
-    return Math.round(((original - final) / original) * 100);
   };
 
   const handleBookNow = async (room: Room, pricing: Pricing) => {
@@ -231,11 +226,6 @@ export default function RoomAvailabilityPage() {
                     <p className="text-base font-semibold text-foreground">
                       {selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}
                     </p>
-                    {selectedBooking.pricing.originalPriceBeforeDiscount > selectedBooking.pricing.totalPriceForEntireStay && (
-                      <p className="text-[11px] text-muted-foreground/70 line-through">
-                        {selectedBooking.room.currency} {selectedBooking.pricing.originalPriceBeforeDiscount.toFixed(0)}
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -345,60 +335,36 @@ export default function RoomAvailabilityPage() {
             </>
           ) : (
             /* Booking Confirmation */
-            <div className="space-y-6 text-center py-4">
+            <div className="space-y-5 text-center py-4">
               <div className="flex justify-center">
-                <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-4">
-                  <Check className="w-10 h-10 text-green-600 dark:text-green-400" />
+                <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3">
+                  <Check className="w-8 h-8 text-green-600 dark:text-green-400" />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-foreground">Booking Confirmed!</h2>
-                <p className="text-sm text-muted-foreground">Your reservation has been successfully confirmed</p>
+                <h2 className="text-lg font-semibold text-foreground">Booking Confirmed</h2>
+                <p className="text-sm text-muted-foreground font-mono">{bookingId}</p>
               </div>
 
-              <div className="p-4 rounded-xl border border-border bg-surface">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Booking Reference</p>
-                <p className="text-2xl font-mono font-semibold text-foreground">{bookingId}</p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-border bg-surface space-y-3 text-left">
-                <div className="flex justify-between pb-3 border-b border-border">
-                  <div>
-                    <p className="font-semibold text-foreground">{selectedBooking.room.roomName}</p>
-                    <p className="text-sm text-muted-foreground">{selectedBooking.pricing.useOnlyForDisplayRatePlanName}</p>
-                  </div>
-                  <p className="font-semibold text-foreground">
-                    {selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}
-                  </p>
+              <div className="p-4 rounded-xl border border-border bg-surface space-y-2 text-left text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Room</span>
+                  <span className="text-foreground font-medium">{selectedBooking.room.roomName}</span>
                 </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Guest Name</span>
-                    <span className="text-foreground">{bookingForm.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Email</span>
-                    <span className="text-foreground truncate ml-4">{bookingForm.email}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Check-in</span>
-                    <span className="text-foreground">{formatDate(checkIn)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Check-out</span>
-                    <span className="text-foreground">{formatDate(checkOut)}</span>
-                  </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Dates</span>
+                  <span className="text-foreground">{formatDate(checkIn)} - {formatDate(checkOut)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="text-foreground font-medium">{selectedBooking.room.currency} {selectedBooking.pricing.totalPriceForEntireStay.toFixed(0)}</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-muted/50 flex items-start gap-2 text-left">
-                <Mail className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-sm text-muted-foreground">
-                  A confirmation email has been sent to <span className="font-medium text-foreground">{bookingForm.email}</span>
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Confirmation sent to {bookingForm.email}
+              </p>
 
               <button
                 onClick={handleCloseBooking}
@@ -472,8 +438,6 @@ export default function RoomAvailabilityPage() {
                 const bestPrice = room.pricing.reduce((best, current) =>
                   current.totalPriceForEntireStay < best.totalPriceForEntireStay ? current : best
                 );
-                const discount = calculateDiscount(bestPrice.originalPriceBeforeDiscount, bestPrice.totalPriceForEntireStay);
-                const hasMultiplePlans = room.pricing.length > 1;
 
                 return (
                   <div
@@ -490,9 +454,6 @@ export default function RoomAvailabilityPage() {
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                         />
-                        <span className="absolute top-2.5 right-2.5 px-2 py-0.5 text-xs font-medium rounded-full bg-green-600 text-white">
-                          {room.availableRooms} left
-                        </span>
                       </div>
                     ) : (
                       <div className="relative w-full h-44 bg-muted/50 flex items-center justify-center">
@@ -531,26 +492,11 @@ export default function RoomAvailabilityPage() {
                             <p className="text-xs text-muted-foreground/80">
                               {room.currency} {bestPrice.roomPricePerNight.toFixed(0)} x {room.nights || 1} night{(room.nights || 1) !== 1 ? 's' : ''}
                             </p>
-                            {hasMultiplePlans && (
-                              <p className="text-xs text-green-600 dark:text-green-400">
-                                Best Rate
-                              </p>
-                            )}
                           </div>
                           <div className="text-right">
-                            {discount > 0 && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 mb-0.5">
-                                {discount}% OFF
-                              </span>
-                            )}
                             <p className="text-base font-semibold text-foreground">
                               {room.currency} {bestPrice.totalPriceForEntireStay.toFixed(0)}
                             </p>
-                            {bestPrice.originalPriceBeforeDiscount > bestPrice.totalPriceForEntireStay && (
-                              <p className="text-[11px] text-muted-foreground/70 line-through">
-                                {room.currency} {bestPrice.originalPriceBeforeDiscount.toFixed(0)}
-                              </p>
-                            )}
                           </div>
                         </div>
 

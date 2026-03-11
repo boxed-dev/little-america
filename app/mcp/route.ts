@@ -126,7 +126,7 @@ interface BookingApiResponse {
   message?: string;
 }
 
-const BOOKING_API_TOKEN = process.env.HOTELZIFY_BOOKING_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjExNzE5LCJyb2xlIjo0LCJyb2xlcyI6IkFETUlOIiwiaG90ZWxJZHMiOlsyMDQ0LDM2NDUsMzY1MF0sImlhdCI6MTczMDgxMDM2OSwiZXhwIjoyMzM1NjEwMzY5fQ.q0jlQKIg6fWonaNrFaVzAJDPu6uP_cwuFmmw4eX11V8";
+const BOOKING_API_TOKEN = process.env.HOTELZIFY_BOOKING_TOKEN || "";
 
 const createHandler = (chainId: string) => createMcpHandler(async (server) => {
   // Fetch chain hotels data for image lookup
@@ -190,6 +190,13 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
       inputSchema: {
         query: z.string().describe("Search query (e.g., 'hotels in Kerala', 'beach resorts')"),
         k: z.number().optional().default(5).describe("Maximum number of results"),
+      },
+      annotations: {
+        title: "Search Hotels",
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: true,
+        idempotentHint: true,
       },
       _meta: widgetMeta(hotelSearchWidget),
     },
@@ -300,6 +307,13 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         children: z.number().optional().default(0).describe("Number of children"),
         infants: z.number().optional().default(0).describe("Number of infants"),
       },
+      annotations: {
+        title: "Check Room Availability",
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
       _meta: widgetMeta(roomAvailabilityWidget),
     },
     async ({ hotelId, hotelName, checkInDate, checkOutDate, adults = 2, children = 0, infants = 0 }: { hotelId: string; hotelName?: string; checkInDate: string; checkOutDate: string; adults?: number; children?: number; infants?: number }) => {
@@ -383,6 +397,13 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         adults: z.number().optional().default(2).describe("Number of adults"),
         children: z.number().optional().default(0).describe("Number of children"),
         infants: z.number().optional().default(0).describe("Number of infants"),
+      },
+      annotations: {
+        title: "Book Room",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: true,
+        idempotentHint: false,
       },
     },
     async ({ hotelId, hotelName, roomName, ratePlanName, checkInDate, checkOutDate, guestName, guestEmail, guestPhone, adults = 2, children = 0, infants = 0 }: {

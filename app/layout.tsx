@@ -3,8 +3,8 @@ import "./globals.css";
 import { baseURL } from "@/baseUrl";
 
 export const metadata: Metadata = {
-  title: "Hotelzify",
-  description: "Hotel search and booking for ChatGPT",
+  title: "Book Direct Hotels",
+  description: "Search and book hotel rooms directly",
 };
 
 export default function RootLayout({
