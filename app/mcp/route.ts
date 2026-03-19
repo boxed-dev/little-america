@@ -1,5 +1,10 @@
 import { baseURL } from "@/baseUrl";
 import { createMcpHandler } from "mcp-handler";
+import {
+  registerAppTool,
+  registerAppResource,
+  RESOURCE_MIME_TYPE,
+} from "@modelcontextprotocol/ext-apps/server";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -8,26 +13,19 @@ const getAppsSdkCompatibleHtml = async (baseUrl: string, path: string) => {
   return await result.text();
 };
 
-type ContentWidget = {
-  id: string;
-  title: string;
-  templateUri: string;
-  invoking: string;
-  invoked: string;
-  html: string;
-  description: string;
-  widgetDomain: string;
+// CSP domains for widgets that load hotel images and data
+const WIDGET_CSP = {
+  connectDomains: [
+    "https://chatapi.hotelzify.com",
+    "https://api.hotelzify.com",
+  ],
+  resourceDomains: [
+    "https://api.hotelzify.com",
+    "https://ik.imagekit.io",
+    "https://*.cloudinary.com",
+    "https://*.amazonaws.com",
+  ],
 };
-
-function widgetMeta(widget: ContentWidget) {
-  return {
-    "openai/outputTemplate": widget.templateUri,
-    "openai/toolInvocation/invoking": widget.invoking,
-    "openai/toolInvocation/invoked": widget.invoked,
-    "openai/widgetAccessible": false,
-    "openai/resultCanProduceWidget": true,
-  } as const;
-}
 
 // Default Chain ID
 const DEFAULT_CHAIN_ID = "1";
@@ -143,50 +141,44 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
 
   // Hotel Search Widget
   const hotelSearchHtml = await getAppsSdkCompatibleHtml(baseURL, "/hotel-search");
-  const hotelSearchWidget: ContentWidget = {
-    id: "search_hotels",
-    title: "Search Hotels",
-    templateUri: "ui://widget/hotel-search.html",
-    invoking: "Searching hotels...",
-    invoked: "Hotels found",
-    html: hotelSearchHtml,
-    description: "Search and display hotels",
-    widgetDomain: "https://hotelzify.com",
-  };
+  const hotelSearchUri = `ui://hotelzify/hotel-search-v1.html`;
 
-  server.registerResource(
-    "hotel-search-widget",
-    hotelSearchWidget.templateUri,
+  registerAppResource(
+    server,
+    "Hotel Search",
+    hotelSearchUri,
     {
-      title: hotelSearchWidget.title,
-      description: hotelSearchWidget.description,
-      mimeType: "text/html+skybridge",
+      description: "Interactive hotel search results display",
       _meta: {
-        "openai/widgetDescription": hotelSearchWidget.description,
-        "openai/widgetPrefersBorder": true,
+        ui: {
+          csp: WIDGET_CSP,
+          prefersBorder: true, domain: baseURL,
+        },
       },
     },
-    async (uri: { href: string }) => ({
+    async () => ({
       contents: [
         {
-          uri: uri.href,
-          mimeType: "text/html+skybridge",
-          text: `<html>${hotelSearchWidget.html}</html>`,
+          uri: hotelSearchUri,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: hotelSearchHtml,
           _meta: {
-            "openai/widgetDescription": hotelSearchWidget.description,
-            "openai/widgetPrefersBorder": true,
-            "openai/widgetDomain": hotelSearchWidget.widgetDomain,
+            ui: {
+              csp: WIDGET_CSP,
+              prefersBorder: true, domain: baseURL,
+            },
           },
         },
       ],
     })
   );
 
-  server.registerTool(
-    hotelSearchWidget.id,
+  registerAppTool(
+    server,
+    "search_hotels",
     {
-      title: hotelSearchWidget.title,
-      description: `Search for hotels in the ${chainName} chain`,
+      title: "Search Hotels",
+      description: `Use this when the user wants to search for hotels, find accommodations, or browse available properties in the ${chainName} hotel chain.`,
       inputSchema: {
         query: z.string().describe("Search query (e.g., 'hotels in Kerala', 'beach resorts')"),
         k: z.number().optional().default(5).describe("Maximum number of results"),
@@ -195,14 +187,17 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         title: "Search Hotels",
         readOnlyHint: true,
         destructiveHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         idempotentHint: true,
       },
-      _meta: widgetMeta(hotelSearchWidget),
+      _meta: {
+        ui: {
+          resourceUri: hotelSearchUri,
+        },
+      },
     },
     async ({ query, k = 5 }: { query: string; k?: number }) => {
       try {
-        // Call the search API
         const searchRes = await fetch("https://chatapi.hotelzify.com/search/hotels", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -210,7 +205,6 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         });
         const searchData: SearchApiResponse = await searchRes.json();
 
-        // Merge with hotel images from chain data
         const hotels = searchData.hotels.map((hotel) => {
           const chainHotel = chainHotels.find((ch) => ch.id === hotel.hotel_id);
           return {
@@ -229,7 +223,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         return {
           content: [
             {
-              type: "text",
+              type: "text" as const,
               text: `Found ${hotels.length} hotel${hotels.length !== 1 ? 's' : ''} matching "${query}"`,
             },
           ],
@@ -239,14 +233,12 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
             count: hotels.length,
             chainName,
           },
-          _meta: widgetMeta(hotelSearchWidget),
         };
       } catch (error) {
         console.error("Search error:", error);
         return {
-          content: [{ type: "text", text: `Error searching hotels: ${error instanceof Error ? error.message : "Unknown error"}` }],
+          content: [{ type: "text" as const, text: `Error searching hotels: ${error instanceof Error ? error.message : "Unknown error"}` }],
           structuredContent: { error: true, query, hotels: [], count: 0, chainName },
-          _meta: widgetMeta(hotelSearchWidget),
         };
       }
     }
@@ -254,50 +246,44 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
 
   // Room Availability Widget
   const roomAvailabilityHtml = await getAppsSdkCompatibleHtml(baseURL, "/room-availability");
-  const roomAvailabilityWidget: ContentWidget = {
-    id: "check_room_availability",
-    title: "Check Room Availability",
-    templateUri: "ui://widget/room-availability.html",
-    invoking: "Checking availability...",
-    invoked: "Availability checked",
-    html: roomAvailabilityHtml,
-    description: "Check room availability and pricing",
-    widgetDomain: "https://hotelzify.com",
-  };
+  const roomAvailabilityUri = `ui://hotelzify/room-availability-v1.html`;
 
-  server.registerResource(
-    "room-availability-widget",
-    roomAvailabilityWidget.templateUri,
+  registerAppResource(
+    server,
+    "Room Availability",
+    roomAvailabilityUri,
     {
-      title: roomAvailabilityWidget.title,
-      description: roomAvailabilityWidget.description,
-      mimeType: "text/html+skybridge",
+      description: "Interactive room availability and pricing display",
       _meta: {
-        "openai/widgetDescription": roomAvailabilityWidget.description,
-        "openai/widgetPrefersBorder": true,
+        ui: {
+          csp: WIDGET_CSP,
+          prefersBorder: true, domain: baseURL,
+        },
       },
     },
-    async (uri: { href: string }) => ({
+    async () => ({
       contents: [
         {
-          uri: uri.href,
-          mimeType: "text/html+skybridge",
-          text: `<html>${roomAvailabilityWidget.html}</html>`,
+          uri: roomAvailabilityUri,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: roomAvailabilityHtml,
           _meta: {
-            "openai/widgetDescription": roomAvailabilityWidget.description,
-            "openai/widgetPrefersBorder": true,
-            "openai/widgetDomain": roomAvailabilityWidget.widgetDomain,
+            ui: {
+              csp: WIDGET_CSP,
+              prefersBorder: true, domain: baseURL,
+            },
           },
         },
       ],
     })
   );
 
-  server.registerTool(
-    roomAvailabilityWidget.id,
+  registerAppTool(
+    server,
+    "check_room_availability",
     {
-      title: roomAvailabilityWidget.title,
-      description: "Check room availability and pricing for a hotel",
+      title: "Check Room Availability",
+      description: "Use this when the user wants to check room availability, see pricing, or view available rooms at a specific hotel for given dates.",
       inputSchema: {
         hotelId: z.string().describe("Hotel ID"),
         hotelName: z.string().optional().describe("Hotel name for display"),
@@ -311,17 +297,18 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         title: "Check Room Availability",
         readOnlyHint: true,
         destructiveHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         idempotentHint: true,
       },
-      _meta: widgetMeta(roomAvailabilityWidget),
+      _meta: {
+        ui: {
+          resourceUri: roomAvailabilityUri,
+        },
+      },
     },
     async ({ hotelId, hotelName, checkInDate, checkOutDate, adults = 2, children = 0, infants = 0 }: { hotelId: string; hotelName?: string; checkInDate: string; checkOutDate: string; adults?: number; children?: number; infants?: number }) => {
       try {
-        // Look up hotel name from chain data if not provided
         const resolvedHotelName = hotelName || chainHotels.find(h => h.id.toString() === hotelId)?.name || "Hotel";
-
-        // Call the availability API
         const totalGuest = adults + children + infants;
         const availRes = await fetch("https://api.hotelzify.com/hotel/v1/hotel/chatbot-availability", {
           method: "POST",
@@ -338,7 +325,6 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         });
         const availData: AvailabilityApiResponse = await availRes.json();
 
-        // Check if we got rooms or just next available dates
         const rooms = Array.isArray(availData.data) && availData.data.length > 0 && 'roomName' in availData.data[0]
           ? availData.data as RoomData[]
           : [];
@@ -350,7 +336,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         return {
           content: [
             {
-              type: "text",
+              type: "text" as const,
               text: rooms.length > 0
                 ? `Found ${rooms.length} available room${rooms.length !== 1 ? 's' : ''} at ${resolvedHotelName} for ${nights} night${nights !== 1 ? 's' : ''}`
                 : `No rooms available at ${resolvedHotelName} for the selected dates`,
@@ -365,14 +351,12 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
             rooms,
             available: rooms.length > 0,
           },
-          _meta: widgetMeta(roomAvailabilityWidget),
         };
       } catch (error) {
         console.error("Availability error:", error);
         return {
-          content: [{ type: "text", text: `Error checking availability: ${error instanceof Error ? error.message : "Unknown error"}` }],
+          content: [{ type: "text" as const, text: `Error checking availability: ${error instanceof Error ? error.message : "Unknown error"}` }],
           structuredContent: { error: true, hotelId, hotelName: hotelName || "Hotel", rooms: [], available: false },
-          _meta: widgetMeta(roomAvailabilityWidget),
         };
       }
     }
@@ -383,7 +367,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
     "book_room",
     {
       title: "Book Room",
-      description: "Book a hotel room with guest details",
+      description: "Use this when the user wants to book a hotel room after selecting a room and providing their guest details.",
       inputSchema: {
         hotelId: z.string().describe("Hotel ID"),
         hotelName: z.string().optional().describe("Hotel name"),
@@ -402,7 +386,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         title: "Book Room",
         readOnlyHint: false,
         destructiveHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         idempotentHint: false,
       },
     },
@@ -421,7 +405,6 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
       infants?: number;
     }) => {
       try {
-        // Parse phone number to extract dial code and mobile
         const cleanPhone = guestPhone.replace(/[\s\-()]/g, '');
         const dialCodeMatch = cleanPhone.match(/^(\+\d{1,3})/);
         const dialCode = dialCodeMatch ? dialCodeMatch[1] : '+91';
@@ -465,27 +448,24 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         return {
           content: [
             {
-              type: "text",
+              type: "text" as const,
               text: `Booking confirmed! Booking ID: ${bookingId}. ${guestName} has successfully booked ${roomName} at ${resolvedHotelName} for ${checkInDate} to ${checkOutDate}. Confirmation sent to ${guestEmail}.`,
             },
           ],
           structuredContent: {
             success: true,
             bookingId,
-            hotelId,
             hotelName: resolvedHotelName,
             roomName,
-            ratePlanName,
             checkInDate,
             checkOutDate,
-            guest: { name: guestName, email: guestEmail, phone: guestPhone },
             guests: { adults, children, infants },
           },
         };
       } catch (error) {
         console.error("Booking error:", error);
         return {
-          content: [{ type: "text", text: `Booking failed: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.` }],
+          content: [{ type: "text" as const, text: `Booking failed: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.` }],
           structuredContent: { success: false, error: error instanceof Error ? error.message : "Unknown error" },
         };
       }
