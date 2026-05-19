@@ -18,12 +18,17 @@ const WIDGET_CSP = {
   connectDomains: [
     "https://chatapi.hotelzify.com",
     "https://api.hotelzify.com",
+    "https://mcp.hotelzify.com",
   ],
   resourceDomains: [
     "https://api.hotelzify.com",
     "https://ik.imagekit.io",
     "https://*.cloudinary.com",
     "https://*.amazonaws.com",
+    "https://mcp.hotelzify.com",
+  ],
+  baseUriDomains: [
+    "https://mcp.hotelzify.com",
   ],
 };
 
@@ -363,8 +368,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
   );
 
   // Book Room Tool (no widget - returns confirmation data)
-  registerAppTool(
-    server,
+  server.registerTool(
     "book_room",
     {
       title: "Book Room",
@@ -390,7 +394,6 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         openWorldHint: false,
         idempotentHint: false,
       },
-      _meta: { ui: {} },
     },
     async ({ hotelId, hotelName, roomName, ratePlanName, checkInDate, checkOutDate, guestName, guestEmail, guestPhone, adults = 2, children = 0, infants = 0 }: {
       hotelId: string;
