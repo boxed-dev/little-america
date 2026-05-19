@@ -35,12 +35,12 @@
     "book_room": {
       "annotations": {
         "readOnlyHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Creates a new hotel reservation in Hotelzify by posting the user's guest details and selected rate plan to the bookings API.",
-        "open_world_justification": "Submits the booking to Hotelzify's reservation system and triggers a confirmation email to the guest, which is delivered outside ChatGPT.",
+        "read_only_justification": "Creates a new hotel reservation in the Hotelzify chain by posting the user's guest details and selected rate plan to Hotelzify's bookings API.",
+        "open_world_justification": "Operates only against the Hotelzify reservation backend for the connected chain; it does not write to public internet state, post to third-party platforms, or interact with unrelated external services.",
         "destructive_justification": "Only adds a new reservation record; it does not delete, overwrite, or revoke any existing data."
       }
     }
