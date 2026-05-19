@@ -18,12 +18,15 @@ const WIDGET_CSP = {
   connectDomains: [
     "https://chatapi.hotelzify.com",
     "https://api.hotelzify.com",
+    "https://mcp.hotelzify.com",
   ],
   resourceDomains: [
     "https://api.hotelzify.com",
     "https://ik.imagekit.io",
-    "https://*.cloudinary.com",
-    "https://*.amazonaws.com",
+    "https://mcp.hotelzify.com",
+  ],
+  baseUriDomains: [
+    "https://mcp.hotelzify.com",
   ],
 };
 
@@ -183,6 +186,25 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         query: z.string().describe("Search query (e.g., 'hotels in Kerala', 'beach resorts')"),
         k: z.number().optional().default(5).describe("Maximum number of results"),
       },
+      outputSchema: {
+        query: z.string(),
+        count: z.number(),
+        chainName: z.string(),
+        hotels: z.array(z.object({
+          hotel_id: z.number(),
+          hotel_name: z.string(),
+          rating: z.number(),
+          location: z.object({
+            address: z.string().optional(),
+            city: z.string().optional(),
+            state: z.string().optional(),
+          }),
+          amenities_text: z.string().optional(),
+          search_score: z.number().optional(),
+          HotelImages: z.array(z.object({ cdnImageUrl: z.string() })),
+        })),
+        error: z.boolean().optional(),
+      },
       annotations: {
         title: "Search Hotels",
         readOnlyHint: true,
@@ -293,6 +315,38 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         children: z.number().optional().default(0).describe("Number of children"),
         infants: z.number().optional().default(0).describe("Number of infants"),
       },
+      outputSchema: {
+        hotelId: z.string(),
+        hotelName: z.string(),
+        checkInDate: z.string(),
+        checkOutDate: z.string(),
+        available: z.boolean(),
+        guests: z.object({
+          adults: z.number(),
+          children: z.number(),
+          infants: z.number(),
+        }),
+        rooms: z.array(z.object({
+          roomName: z.string(),
+          id: z.number(),
+          maxAdultCount: z.number(),
+          maxChildCount: z.number(),
+          maxInfantCount: z.number(),
+          currency: z.string(),
+          amenities: z.array(z.string()),
+          images: z.array(z.string()),
+          availableRooms: z.number(),
+          nights: z.number(),
+          pricing: z.array(z.object({
+            totalPriceForEntireStay: z.number(),
+            roomPricePerNight: z.number(),
+            originalPriceBeforeDiscount: z.number(),
+            useOnlyForDisplayRatePlanName: z.string(),
+            ratePlanName: z.string(),
+          })),
+        })),
+        error: z.boolean().optional(),
+      },
       annotations: {
         title: "Check Room Availability",
         readOnlyHint: true,
@@ -363,11 +417,12 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
   );
 
   // Book Room Tool (no widget - returns confirmation data)
-  server.registerTool(
+  registerAppTool(
+    server,
     "book_room",
     {
       title: "Book Room",
-      description: "Use this when the user wants to book a hotel room after selecting a room and providing their guest details.",
+      description: "Books a hotel room by submitting the guest's name, email, and phone to Hotelzify's reservation system. This creates a real reservation and triggers a confirmation email to the guest; cancellation must be handled separately by the hotel. Only use after the user has selected a specific room and rate plan and has explicitly confirmed they want to book.",
       inputSchema: {
         hotelId: z.string().describe("Hotel ID"),
         hotelName: z.string().optional().describe("Hotel name"),
@@ -376,19 +431,34 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         checkInDate: z.string().describe("Check-in date (YYYY-MM-DD)"),
         checkOutDate: z.string().describe("Check-out date (YYYY-MM-DD)"),
         guestName: z.string().describe("Guest full name"),
-        guestEmail: z.string().email().describe("Guest email address"),
-        guestPhone: z.string().describe("Guest phone number with country code (e.g., +91 9876543210)"),
+        guestEmail: z.string().email().describe("Guest email address for booking confirmation"),
+        guestPhone: z.string().describe("Guest phone number with country code (e.g., +1 5551234567, +44 7911123456)"),
         adults: z.number().optional().default(2).describe("Number of adults"),
         children: z.number().optional().default(0).describe("Number of children"),
         infants: z.number().optional().default(0).describe("Number of infants"),
       },
+      outputSchema: {
+        success: z.boolean(),
+        bookingId: z.string().optional(),
+        hotelName: z.string().optional(),
+        roomName: z.string().optional(),
+        checkInDate: z.string().optional(),
+        checkOutDate: z.string().optional(),
+        guests: z.object({
+          adults: z.number(),
+          children: z.number(),
+          infants: z.number(),
+        }).optional(),
+        error: z.string().optional(),
+      },
       annotations: {
         title: "Book Room",
         readOnlyHint: false,
-        destructiveHint: false,
-        openWorldHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
         idempotentHint: false,
       },
+      _meta: { ui: {} },
     },
     async ({ hotelId, hotelName, roomName, ratePlanName, checkInDate, checkOutDate, guestName, guestEmail, guestPhone, adults = 2, children = 0, infants = 0 }: {
       hotelId: string;
@@ -407,7 +477,13 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
       try {
         const cleanPhone = guestPhone.replace(/[\s\-()]/g, '');
         const dialCodeMatch = cleanPhone.match(/^(\+\d{1,3})/);
-        const dialCode = dialCodeMatch ? dialCodeMatch[1] : '+91';
+        const dialCode = dialCodeMatch ? dialCodeMatch[1] : null;
+        if (!dialCode) {
+          return {
+            content: [{ type: "text" as const, text: "Please provide the phone number with a country code (e.g., +1 for US, +44 for UK, +91 for India)." }],
+            structuredContent: { success: false, error: "Missing country code in phone number" },
+          };
+        }
         const mobile = cleanPhone.replace(/^\+\d{1,3}/, '');
 
         const resolvedHotelName = hotelName || chainHotels.find(h => h.id.toString() === hotelId)?.name || "Hotel";
@@ -471,6 +547,11 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
       }
     }
   );
+}, {
+  serverInfo: {
+    name: "Hotelzify - Book Directly",
+    version: "0.1.0",
+  },
 });
 
 // Cache handlers by chainId

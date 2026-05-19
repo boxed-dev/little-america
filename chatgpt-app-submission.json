@@ -1,0 +1,132 @@
+{
+  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "Hotelzify - Book Directly",
+    "subtitle": "Book hotels directly",
+    "description": "Hotelzify lets users search hotels in the Hotelzify chain, check room availability and live pricing for specific dates, and complete a direct booking with guest details — all inside ChatGPT. Results are shown as interactive widgets so the user can browse properties, compare rate plans, and confirm a reservation in one conversation.",
+    "category": "TRAVEL"
+  },
+  "tools": {
+    "search_hotels": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only queries the Hotelzify search API and returns matching hotels with images and metadata; does not modify any record.",
+        "open_world_justification": "Reads from Hotelzify's own search and chain APIs and does not write to public internet state or third-party systems.",
+        "destructive_justification": "Performs no deletes, overwrites, or irreversible actions; output is a transient list of search results."
+      }
+    },
+    "check_room_availability": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Calls the Hotelzify availability endpoint to retrieve rooms, rate plans, and prices for the requested dates without creating or updating any reservation.",
+        "open_world_justification": "Queries Hotelzify's private availability service and does not write to public internet state or third-party systems.",
+        "destructive_justification": "Returns availability and pricing data only; does not delete, overwrite, or commit any booking."
+      }
+    },
+    "book_room": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true,
+        "destructiveHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Creates a real hotel reservation in Hotelzify by posting guest details and the selected rate plan to the bookings API.",
+        "open_world_justification": "Submits a booking to the Hotelzify reservation system and triggers a confirmation email to the guest, which is visible outside ChatGPT.",
+        "destructive_justification": "Commits a financial reservation that cannot be undone from within the tool; cancellation must be handled separately by the hotel."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Search hotels by destination keyword.",
+      "user_prompt": "Find me hotels in Kerala.",
+      "file_attachment_urls": null,
+      "tools_triggered": "search_hotels",
+      "expected_output": "Returns a list of matching Hotelzify properties in Kerala with name, location, rating, amenities, and images rendered in the hotel search widget.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Search hotels by experience type.",
+      "user_prompt": "Show me beach resorts available through Hotelzify.",
+      "file_attachment_urls": null,
+      "tools_triggered": "search_hotels",
+      "expected_output": "Returns beach-oriented properties from the Hotelzify chain with images and ratings; no booking is created.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Check availability after picking a hotel from search results.",
+      "user_prompt": "Check room availability at hotel 123 from 2026-06-10 to 2026-06-12 for 2 adults.",
+      "file_attachment_urls": null,
+      "tools_triggered": "check_room_availability",
+      "expected_output": "Returns available rooms with rate plans, nightly and total prices, and any discount labels in the room availability widget; no booking is created.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Check availability with mixed guest composition.",
+      "user_prompt": "Are there family rooms available at hotel 123 for 2 adults and 1 child from 2026-07-01 to 2026-07-04?",
+      "file_attachment_urls": null,
+      "tools_triggered": "check_room_availability",
+      "expected_output": "Returns rooms that fit the guest mix with pricing for the 3-night stay, or a clear no-availability message if none are returned by the API.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Complete a direct booking after the user picks a room and provides guest details.",
+      "user_prompt": "Book the Deluxe Room with the Bed & Breakfast rate at hotel 123 from 2026-06-10 to 2026-06-12 for John Doe, john@example.com, phone +1 5551234567.",
+      "file_attachment_urls": null,
+      "tools_triggered": "book_room",
+      "expected_output": "Submits the reservation to Hotelzify and returns a booking ID with the hotel name, room, dates, and a confirmation that an email was sent to the guest.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Booking is rejected when phone number has no country code.",
+      "user_prompt": "Book the Deluxe Room at hotel 123 from 2026-06-10 to 2026-06-12 for John Doe, john@example.com, phone 5551234567.",
+      "file_attachment_urls": null,
+      "tools_triggered": "book_room",
+      "expected_output": "Returns a clear message asking the user to provide a phone number with a country code; no booking is created.",
+      "expected_output_url": null
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Do not trigger for flight booking requests.",
+      "user_prompt": "Book me a flight from New York to London next Friday.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because it only handles hotels in the Hotelzify chain, not flights.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for restaurant reservations.",
+      "user_prompt": "Reserve a table for two at an Italian restaurant tonight.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because dining reservations are outside its supported workflows.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for general travel advice without a hotel intent.",
+      "user_prompt": "What's the best time of year to visit Goa?",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because the user is asking for travel advice, not searching, checking availability, or booking a hotel.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for cancellation or modification of an existing booking.",
+      "user_prompt": "Cancel my hotel reservation from last week.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because it does not expose tools for cancelling or modifying existing reservations.",
+      "expected_output_url": null
+    }
+  ]
+}
