@@ -480,11 +480,6 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
       }
     }
   );
-}, {
-  serverInfo: {
-    name: "Hotelzify - Book Directly",
-    version: "0.1.0",
-  },
 });
 
 // Cache handlers by chainId
