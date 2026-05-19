@@ -417,8 +417,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
   );
 
   // Book Room Tool (no widget - returns confirmation data)
-  registerAppTool(
-    server,
+  server.registerTool(
     "book_room",
     {
       title: "Book Room",
@@ -454,11 +453,10 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
       annotations: {
         title: "Book Room",
         readOnlyHint: false,
-        destructiveHint: true,
+        destructiveHint: false,
         openWorldHint: true,
         idempotentHint: false,
       },
-      _meta: { ui: {} },
     },
     async ({ hotelId, hotelName, roomName, ratePlanName, checkInDate, checkOutDate, guestName, guestEmail, guestPhone, adults = 2, children = 0, infants = 0 }: {
       hotelId: string;

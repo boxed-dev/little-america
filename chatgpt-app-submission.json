@@ -36,12 +36,12 @@
       "annotations": {
         "readOnlyHint": false,
         "openWorldHint": true,
-        "destructiveHint": true
+        "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Creates a real hotel reservation in Hotelzify by posting guest details and the selected rate plan to the bookings API.",
-        "open_world_justification": "Submits a booking to the Hotelzify reservation system and triggers a confirmation email to the guest, which is visible outside ChatGPT.",
-        "destructive_justification": "Commits a financial reservation that cannot be undone from within the tool; cancellation must be handled separately by the hotel."
+        "read_only_justification": "Creates a new hotel reservation in Hotelzify by posting the user's guest details and selected rate plan to the bookings API.",
+        "open_world_justification": "Submits the booking to Hotelzify's reservation system and triggers a confirmation email to the guest, which is delivered outside ChatGPT.",
+        "destructive_justification": "Only adds a new reservation record; it does not delete, overwrite, or revoke any existing data."
       }
     }
   },
