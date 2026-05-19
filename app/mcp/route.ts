@@ -18,15 +18,12 @@ const WIDGET_CSP = {
   connectDomains: [
     "https://chatapi.hotelzify.com",
     "https://api.hotelzify.com",
-    "https://mcp.hotelzify.com",
   ],
   resourceDomains: [
     "https://api.hotelzify.com",
     "https://ik.imagekit.io",
-    "https://mcp.hotelzify.com",
-  ],
-  baseUriDomains: [
-    "https://mcp.hotelzify.com",
+    "https://*.cloudinary.com",
+    "https://*.amazonaws.com",
   ],
 };
 
@@ -370,7 +367,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
     "book_room",
     {
       title: "Book Room",
-      description: "Books a hotel room by submitting the guest's name, email, and phone to Hotelzify's reservation system. This creates a real reservation and triggers a confirmation email to the guest; cancellation must be handled separately by the hotel. Only use after the user has selected a specific room and rate plan and has explicitly confirmed they want to book.",
+      description: "Use this when the user wants to book a hotel room after selecting a room and providing their guest details.",
       inputSchema: {
         hotelId: z.string().describe("Hotel ID"),
         hotelName: z.string().optional().describe("Hotel name"),
@@ -379,8 +376,8 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         checkInDate: z.string().describe("Check-in date (YYYY-MM-DD)"),
         checkOutDate: z.string().describe("Check-out date (YYYY-MM-DD)"),
         guestName: z.string().describe("Guest full name"),
-        guestEmail: z.string().email().describe("Guest email address for booking confirmation"),
-        guestPhone: z.string().describe("Guest phone number with country code (e.g., +1 5551234567, +44 7911123456)"),
+        guestEmail: z.string().email().describe("Guest email address"),
+        guestPhone: z.string().describe("Guest phone number with country code (e.g., +91 9876543210)"),
         adults: z.number().optional().default(2).describe("Number of adults"),
         children: z.number().optional().default(0).describe("Number of children"),
         infants: z.number().optional().default(0).describe("Number of infants"),
@@ -389,7 +386,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         title: "Book Room",
         readOnlyHint: false,
         destructiveHint: false,
-        openWorldHint: true,
+        openWorldHint: false,
         idempotentHint: false,
       },
     },
