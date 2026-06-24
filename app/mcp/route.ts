@@ -7,80 +7,68 @@ import {
 } from "@modelcontextprotocol/ext-apps/server";
 import { NextRequest } from "next/server";
 import { z } from "zod";
+import { parsePhone } from "@/lib/phone";
+import { searchHotels, getHotel } from "@/lib/hotel-index";
 
 const getAppsSdkCompatibleHtml = async (baseUrl: string, path: string) => {
   const result = await fetch(`${baseUrl}${path}`);
+  if (!result.ok) {
+    throw new Error(`Failed to load widget ${path}: ${result.status}`);
+  }
   return await result.text();
 };
 
-// CSP domains for widgets that load hotel images and data
-const WIDGET_CSP = {
+const toOrigin = (url: string) => {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return baseURL;
+  }
+};
+
+const buildWidgetCsp = (appBaseUrl: string) => ({
   connectDomains: [
     "https://chatapi.hotelzify.com",
     "https://api.hotelzify.com",
-    "https://mcp.hotelzify.com",
+    toOrigin(appBaseUrl),
   ],
   resourceDomains: [
     "https://api.hotelzify.com",
     "https://ik.imagekit.io",
-    "https://*.cloudinary.com",
-    "https://*.amazonaws.com",
-    "https://mcp.hotelzify.com",
+    toOrigin(appBaseUrl),
   ],
-  baseUriDomains: [
-    "https://mcp.hotelzify.com",
-  ],
+});
+
+const buildLegacyWidgetCsp = (appBaseUrl: string) => {
+  const csp = buildWidgetCsp(appBaseUrl);
+  return {
+    connect_domains: csp.connectDomains,
+    resource_domains: csp.resourceDomains,
+    redirect_domains: [toOrigin(appBaseUrl), "https://www.hotelzify.com", "https://hotelzify.com"],
+  };
 };
 
-// Default Chain ID
-const DEFAULT_CHAIN_ID = "1";
-
-interface ChainHotel {
-  id: number;
-  name: string;
-  city: string;
-  state: string;
-  country: string;
-  address: string;
-  rating: number;
-  hotelHighlight: string;
-  HotelImages?: { cdnImageUrl: string }[];
-}
-
-interface ChainApiResponse {
-  status: number;
-  data: {
-    chain: {
-      id: number;
-      name: string;
-    };
-    hotels: ChainHotel[];
+const buildResourceMeta = (appBaseUrl: string, widgetDescription: string) => {
+  const csp = buildWidgetCsp(appBaseUrl);
+  return {
+    ui: {
+      csp,
+      prefersBorder: true,
+      domain: toOrigin(appBaseUrl),
+    },
+    "openai/widgetDescription": widgetDescription,
+    "openai/widgetPrefersBorder": true,
+    "openai/widgetCSP": buildLegacyWidgetCsp(appBaseUrl),
   };
-}
+};
 
-interface SearchHotel {
-  hotel_id: number;
-  hotel_name: string;
-  rating: number;
-  location: {
-    address: string;
-    city: string;
-    state: string;
-  };
-  amenities_text: string;
-  search_score: number;
-}
-
-interface SearchApiResponse {
-  hotels: SearchHotel[];
-  total_results: number;
-  query: string;
-}
+// User-facing brand name (shown in tool descriptions and widgets)
+const BRAND_NAME = "Hotelzify";
 
 interface RoomPricing {
   totalPriceForEntireStay: number;
   roomPricePerNight: number;
-  originalPriceBeforeDiscount: number;
+  originalPriceBeforeDiscount?: number;
   useOnlyForDisplayRatePlanName: string;
   ratePlanName: string;
 }
@@ -88,15 +76,15 @@ interface RoomPricing {
 interface RoomData {
   roomName: string;
   id: number;
-  maxAdultCount: number;
-  maxChildCount: number;
-  maxInfantCount: number;
-  currency: string;
-  amenities: string[];
-  images: string[];
-  pricing: RoomPricing[];
-  availableRooms: number;
-  nights: number;
+  maxAdultCount?: number;
+  maxChildCount?: number;
+  maxInfantCount?: number;
+  currency?: string;
+  amenities?: string[];
+  images?: string[];
+  pricing?: RoomPricing[];
+  availableRooms?: number;
+  nights?: number;
 }
 
 interface AvailabilityApiResponse {
@@ -131,22 +119,122 @@ interface BookingApiResponse {
 
 const BOOKING_API_TOKEN = process.env.HOTELZIFY_BOOKING_TOKEN || "";
 
-const createHandler = (chainId: string) => createMcpHandler(async (server) => {
-  // Fetch chain hotels data for image lookup
-  let chainHotels: ChainHotel[] = [];
-  let chainName = "Hotel Chain";
-  try {
-    const chainRes = await fetch(`https://api.hotelzify.com/hotel/v2/hotel/chain-hotels-lite-v2?chainId=${chainId}`);
-    const chainData: ChainApiResponse = await chainRes.json();
-    chainHotels = chainData.data?.hotels || [];
-    chainName = chainData.data?.chain?.name || "Hotel Chain";
-  } catch (e) {
-    console.error("Failed to fetch chain hotels:", e);
-  }
+// Output schemas describe concise structuredContent for the model and widget.
+// Keep upstream internals, policy blobs, and large image arrays out of model-visible output.
+// IMPORTANT: these are factories, not shared consts. The handler re-registers
+// tools per server instance, and zod schema objects must not be reused across registrations.
+const searchHotelsOutputSchema = () => ({
+  query: z.string().describe("The search query that was executed"),
+  hotels: z.array(
+    z.object({
+      hotel_id: z.number().describe("Hotel ID, used for availability and booking"),
+      hotel_name: z.string(),
+      rating: z.number().optional(),
+      location: z
+        .object({
+          address: z.string().optional(),
+          city: z.string().optional(),
+          state: z.string().optional(),
+        })
+        .optional(),
+      amenities_text: z.string().optional(),
+      imageUrl: z.string().optional(),
+    })
+  ),
+  count: z.number().describe("Number of hotels found"),
+  chainName: z.string(),
+  error: z.boolean().optional().describe("Present and true when the search failed"),
+});
 
+const checkAvailabilityOutputSchema = () => ({
+  hotelId: z.string(),
+  hotelName: z.string(),
+  checkInDate: z.string().optional(),
+  checkOutDate: z.string().optional(),
+  guests: z
+    .object({ adults: z.number(), children: z.number(), infants: z.number() })
+    .optional(),
+  rooms: z.array(
+    z.object({
+      id: z.number(),
+      roomName: z.string(),
+      maxAdultCount: z.number().optional(),
+      maxChildCount: z.number().optional(),
+      maxInfantCount: z.number().optional(),
+      availableRooms: z.number(),
+      currency: z.string(),
+      amenities: z.array(z.string()),
+      imageUrl: z.string().optional(),
+      nights: z.number(),
+      pricing: z
+        .array(
+          z.object({
+            ratePlanName: z.string().describe("Rate plan identifier required by book_room"),
+            useOnlyForDisplayRatePlanName: z.string().describe("Human-readable rate plan name; show this to the user"),
+            totalPriceForEntireStay: z.number(),
+            roomPricePerNight: z.number(),
+            originalPriceBeforeDiscount: z.number().optional(),
+          })
+        )
+        .describe("Bookable rate plans for this room"),
+    })
+  ),
+  available: z.boolean().describe("Whether any rooms are available for the requested dates"),
+  error: z.boolean().optional().describe("Present and true when the availability check failed"),
+});
+
+const bookRoomOutputSchema = () => ({
+  success: z.boolean().describe("Whether the booking was confirmed by Hotelzify"),
+  bookingId: z.union([z.string(), z.number()]).optional().describe("Confirmed booking reference, present only on success"),
+  hotelName: z.string().optional(),
+  roomName: z.string().optional(),
+  checkInDate: z.string().optional(),
+  checkOutDate: z.string().optional(),
+  guests: z
+    .object({ adults: z.number(), children: z.number(), infants: z.number() })
+    .optional(),
+  error: z.string().optional().describe("Failure reason, present only when success is false"),
+});
+
+const firstValidImage = (images?: string[]) =>
+  images?.find((image) => image && !image.includes("chatbot-converted-images"));
+
+const summarizeRoom = (room: RoomData) => ({
+  id: room.id,
+  roomName: room.roomName,
+  maxAdultCount: room.maxAdultCount,
+  maxChildCount: room.maxChildCount,
+  maxInfantCount: room.maxInfantCount,
+  availableRooms: room.availableRooms ?? 0,
+  currency: room.currency ?? "INR",
+  amenities: room.amenities?.slice(0, 6) ?? [],
+  imageUrl: firstValidImage(room.images),
+  nights: room.nights ?? 1,
+  pricing: (room.pricing ?? [])
+    .filter(
+      (pricing) =>
+        pricing.ratePlanName &&
+        pricing.useOnlyForDisplayRatePlanName &&
+        Number.isFinite(pricing.totalPriceForEntireStay) &&
+        Number.isFinite(pricing.roomPricePerNight)
+    )
+    .map((pricing) => ({
+      ratePlanName: pricing.ratePlanName,
+      useOnlyForDisplayRatePlanName: pricing.useOnlyForDisplayRatePlanName,
+      totalPriceForEntireStay: pricing.totalPriceForEntireStay,
+      roomPricePerNight: pricing.roomPricePerNight,
+      originalPriceBeforeDiscount: pricing.originalPriceBeforeDiscount,
+    })),
+});
+
+const createHandler = (appBaseUrl: string) => createMcpHandler(async (server) => {
   // Hotel Search Widget
-  const hotelSearchHtml = await getAppsSdkCompatibleHtml(baseURL, "/hotel-search");
+  const hotelSearchHtml = await getAppsSdkCompatibleHtml(appBaseUrl, "/hotel-search");
   const hotelSearchUri = `ui://hotelzify/hotel-search-v1.html`;
+  const hotelSearchResourceMeta = buildResourceMeta(
+    appBaseUrl,
+    "Shows concise Hotelzify hotel search results with images, location, and property highlights."
+  );
 
   registerAppResource(
     server,
@@ -154,12 +242,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
     hotelSearchUri,
     {
       description: "Interactive hotel search results display",
-      _meta: {
-        ui: {
-          csp: WIDGET_CSP,
-          prefersBorder: true, domain: baseURL,
-        },
-      },
+      _meta: hotelSearchResourceMeta,
     },
     async () => ({
       contents: [
@@ -167,12 +250,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
           uri: hotelSearchUri,
           mimeType: RESOURCE_MIME_TYPE,
           text: hotelSearchHtml,
-          _meta: {
-            ui: {
-              csp: WIDGET_CSP,
-              prefersBorder: true, domain: baseURL,
-            },
-          },
+          _meta: hotelSearchResourceMeta,
         },
       ],
     })
@@ -183,11 +261,12 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
     "search_hotels",
     {
       title: "Search Hotels",
-      description: `Use this when the user wants to search for hotels, find accommodations, or browse available properties in the ${chainName} hotel chain.`,
+      description: `Use this only when the user wants to search for Hotelzify hotels, resorts, accommodations, or available properties. Do not use this for flights, restaurants, general destination advice without hotel intent, or cancellation/modification of an existing reservation.`,
       inputSchema: {
         query: z.string().describe("Search query (e.g., 'hotels in Kerala', 'beach resorts')"),
-        k: z.number().optional().default(5).describe("Maximum number of results"),
+        k: z.number().int().min(1).max(10).optional().default(5).describe("Maximum number of results"),
       },
+      outputSchema: searchHotelsOutputSchema(),
       annotations: {
         title: "Search Hotels",
         readOnlyHint: true,
@@ -199,32 +278,14 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         ui: {
           resourceUri: hotelSearchUri,
         },
+        "openai/outputTemplate": hotelSearchUri,
+        "openai/toolInvocation/invoking": "Searching hotels...",
+        "openai/toolInvocation/invoked": "Hotels ready",
       },
     },
     async ({ query, k = 5 }: { query: string; k?: number }) => {
       try {
-        const searchRes = await fetch("https://chatapi.hotelzify.com/search/hotels", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, chain_id: chainId, k }),
-        });
-        const searchData: SearchApiResponse = await searchRes.json();
-
-        const hotels = searchData.hotels.map((hotel) => {
-          const chainHotel = chainHotels.find((ch) => ch.id === hotel.hotel_id);
-          return {
-            hotel_id: hotel.hotel_id,
-            hotel_name: hotel.hotel_name,
-            rating: hotel.rating || chainHotel?.rating || 0,
-            location: hotel.location,
-            amenities_text: hotel.amenities_text,
-            search_score: hotel.search_score,
-            HotelImages: chainHotel?.HotelImages?.filter(img =>
-              img.cdnImageUrl && !img.cdnImageUrl.endsWith('chatbot-converted-images')
-            ) || [],
-          };
-        });
-
+        const hotels = await searchHotels(query, k);
         return {
           content: [
             {
@@ -236,22 +297,26 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
             query,
             hotels,
             count: hotels.length,
-            chainName,
+            chainName: BRAND_NAME,
           },
         };
       } catch (error) {
         console.error("Search error:", error);
         return {
-          content: [{ type: "text" as const, text: `Error searching hotels: ${error instanceof Error ? error.message : "Unknown error"}` }],
-          structuredContent: { error: true, query, hotels: [], count: 0, chainName },
+          content: [{ type: "text" as const, text: "Hotel search is temporarily unavailable. Please try again in a moment." }],
+          structuredContent: { error: true, query, hotels: [], count: 0, chainName: BRAND_NAME },
         };
       }
     }
   );
 
   // Room Availability Widget
-  const roomAvailabilityHtml = await getAppsSdkCompatibleHtml(baseURL, "/room-availability");
+  const roomAvailabilityHtml = await getAppsSdkCompatibleHtml(appBaseUrl, "/room-availability");
   const roomAvailabilityUri = `ui://hotelzify/room-availability-v1.html`;
+  const roomAvailabilityResourceMeta = buildResourceMeta(
+    appBaseUrl,
+    "Shows Hotelzify room availability, concise pricing options, and an explicit reservation confirmation form."
+  );
 
   registerAppResource(
     server,
@@ -259,12 +324,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
     roomAvailabilityUri,
     {
       description: "Interactive room availability and pricing display",
-      _meta: {
-        ui: {
-          csp: WIDGET_CSP,
-          prefersBorder: true, domain: baseURL,
-        },
-      },
+      _meta: roomAvailabilityResourceMeta,
     },
     async () => ({
       contents: [
@@ -272,12 +332,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
           uri: roomAvailabilityUri,
           mimeType: RESOURCE_MIME_TYPE,
           text: roomAvailabilityHtml,
-          _meta: {
-            ui: {
-              csp: WIDGET_CSP,
-              prefersBorder: true, domain: baseURL,
-            },
-          },
+          _meta: roomAvailabilityResourceMeta,
         },
       ],
     })
@@ -288,16 +343,17 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
     "check_room_availability",
     {
       title: "Check Room Availability",
-      description: "Use this when the user wants to check room availability, see pricing, or view available rooms at a specific hotel for given dates.",
+      description: "Use this only when the user wants to check room availability, see pricing, or view available rooms at a specific Hotelzify hotel for specific dates and guest counts. Do not use this for flights, restaurants, general destination advice, or cancellation/modification of an existing reservation. Each room's pricing options contain an internal ratePlanName identifier and a human-readable useOnlyForDisplayRatePlanName; always refer to rate plans by the display name when talking to the user.",
       inputSchema: {
         hotelId: z.string().describe("Hotel ID"),
         hotelName: z.string().optional().describe("Hotel name for display"),
         checkInDate: z.string().describe("Check-in date (YYYY-MM-DD)"),
         checkOutDate: z.string().describe("Check-out date (YYYY-MM-DD)"),
-        adults: z.number().optional().default(2).describe("Number of adults"),
-        children: z.number().optional().default(0).describe("Number of children"),
-        infants: z.number().optional().default(0).describe("Number of infants"),
+        adults: z.number().int().min(1).max(12).optional().default(2).describe("Number of adults"),
+        children: z.number().int().min(0).max(12).optional().default(0).describe("Number of children"),
+        infants: z.number().int().min(0).max(6).optional().default(0).describe("Number of infants"),
       },
+      outputSchema: checkAvailabilityOutputSchema(),
       annotations: {
         title: "Check Room Availability",
         readOnlyHint: true,
@@ -309,11 +365,14 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
         ui: {
           resourceUri: roomAvailabilityUri,
         },
+        "openai/outputTemplate": roomAvailabilityUri,
+        "openai/toolInvocation/invoking": "Checking rooms...",
+        "openai/toolInvocation/invoked": "Rooms ready",
       },
     },
     async ({ hotelId, hotelName, checkInDate, checkOutDate, adults = 2, children = 0, infants = 0 }: { hotelId: string; hotelName?: string; checkInDate: string; checkOutDate: string; adults?: number; children?: number; infants?: number }) => {
       try {
-        const resolvedHotelName = hotelName || chainHotels.find(h => h.id.toString() === hotelId)?.name || "Hotel";
+        const resolvedHotelName = hotelName || (await getHotel(hotelId))?.hotel_name || "Hotel";
         const totalGuest = adults + children + infants;
         const availRes = await fetch("https://api.hotelzify.com/hotel/v1/hotel/chatbot-availability", {
           method: "POST",
@@ -328,11 +387,15 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
             totalGuest,
           }),
         });
+        if (!availRes.ok) {
+          throw new Error(`Availability check failed with ${availRes.status}`);
+        }
         const availData: AvailabilityApiResponse = await availRes.json();
 
         const rooms = Array.isArray(availData.data) && availData.data.length > 0 && 'roomName' in availData.data[0]
           ? availData.data as RoomData[]
           : [];
+        const summarizedRooms = rooms.map(summarizeRoom).filter((room) => room.pricing.length > 0);
 
         const checkIn = new Date(checkInDate);
         const checkOut = new Date(checkOutDate);
@@ -342,8 +405,8 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
           content: [
             {
               type: "text" as const,
-              text: rooms.length > 0
-                ? `Found ${rooms.length} available room${rooms.length !== 1 ? 's' : ''} at ${resolvedHotelName} for ${nights} night${nights !== 1 ? 's' : ''}`
+              text: summarizedRooms.length > 0
+                ? `Found ${summarizedRooms.length} available room${summarizedRooms.length !== 1 ? 's' : ''} at ${resolvedHotelName} for ${nights} night${nights !== 1 ? 's' : ''}`
                 : `No rooms available at ${resolvedHotelName} for the selected dates`,
             },
           ],
@@ -353,8 +416,8 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
             checkInDate,
             checkOutDate,
             guests: { adults, children, infants },
-            rooms,
-            available: rooms.length > 0,
+            rooms: summarizedRooms,
+            available: summarizedRooms.length > 0,
           },
         };
       } catch (error) {
@@ -372,30 +435,40 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
     "book_room",
     {
       title: "Book Room",
-      description: "Use this when the user wants to book a hotel room after selecting a room and providing their guest details.",
+      description: "Use this only after the user has explicitly confirmed the selected Hotelzify room, dates, rate plan, guest name, email, phone number, guest counts, and total price. This creates a real hotel reservation request and may send a confirmation email. Do not use this for cancellations, modifications, flights, restaurants, or unconfirmed bookings. No payment is collected in ChatGPT.",
       inputSchema: {
         hotelId: z.string().describe("Hotel ID"),
         hotelName: z.string().optional().describe("Hotel name"),
-        roomName: z.string().describe("Room name"),
-        ratePlanName: z.string().describe("Rate plan name"),
+        roomName: z.string().describe("Room name exactly as returned by check_room_availability"),
+        ratePlanName: z.string().describe("Rate plan identifier: pass the pricing option's ratePlanName value exactly as returned by check_room_availability (often an opaque ID). When confirming with the user, refer to the plan by its useOnlyForDisplayRatePlanName instead."),
         checkInDate: z.string().describe("Check-in date (YYYY-MM-DD)"),
         checkOutDate: z.string().describe("Check-out date (YYYY-MM-DD)"),
         guestName: z.string().describe("Guest full name"),
         guestEmail: z.string().email().describe("Guest email address"),
-        guestPhone: z.string().describe("Guest phone number with country code (e.g., +91 9876543210)"),
-        adults: z.number().optional().default(2).describe("Number of adults"),
-        children: z.number().optional().default(0).describe("Number of children"),
-        infants: z.number().optional().default(0).describe("Number of infants"),
+        guestPhone: z.string().describe("Guest phone number: country code, a space, then the number (e.g., +91 9876543210)"),
+        adults: z.number().int().min(1).max(12).optional().default(2).describe("Number of adults"),
+        children: z.number().int().min(0).max(12).optional().default(0).describe("Number of children"),
+        infants: z.number().int().min(0).max(6).optional().default(0).describe("Number of infants"),
+        confirmedByUser: z.boolean().describe("Must be true only after the user explicitly confirms this exact reservation in the current turn or widget form"),
       },
+      outputSchema: bookRoomOutputSchema(),
       annotations: {
         title: "Book Room",
         readOnlyHint: false,
         destructiveHint: false,
-        openWorldHint: false,
+        openWorldHint: true,
         idempotentHint: false,
       },
+      _meta: {
+        ui: {
+          visibility: ["model", "app"],
+        },
+        "openai/widgetAccessible": true,
+        "openai/toolInvocation/invoking": "Submitting reservation...",
+        "openai/toolInvocation/invoked": "Reservation submitted",
+      },
     },
-    async ({ hotelId, hotelName, roomName, ratePlanName, checkInDate, checkOutDate, guestName, guestEmail, guestPhone, adults = 2, children = 0, infants = 0 }: {
+    async ({ hotelId, hotelName, roomName, ratePlanName, checkInDate, checkOutDate, guestName, guestEmail, guestPhone, adults = 2, children = 0, infants = 0, confirmedByUser }: {
       hotelId: string;
       hotelName?: string;
       roomName: string;
@@ -408,20 +481,31 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
       adults?: number;
       children?: number;
       infants?: number;
+      confirmedByUser: boolean;
     }) => {
       try {
-        const cleanPhone = guestPhone.replace(/[\s\-()]/g, '');
-        const dialCodeMatch = cleanPhone.match(/^(\+\d{1,3})/);
-        const dialCode = dialCodeMatch ? dialCodeMatch[1] : null;
-        if (!dialCode) {
+        if (!confirmedByUser) {
           return {
-            content: [{ type: "text" as const, text: "Please provide the phone number with a country code (e.g., +1 for US, +44 for UK, +91 for India)." }],
-            structuredContent: { success: false, error: "Missing country code in phone number" },
+            content: [{ type: "text" as const, text: "Please confirm the exact hotel, room, dates, guest details, and price before I submit the reservation." }],
+            structuredContent: { success: false, error: "Reservation not confirmed by user" },
           };
         }
-        const mobile = cleanPhone.replace(/^\+\d{1,3}/, '');
+        const parsed = parsePhone(guestPhone);
+        if (!parsed) {
+          return {
+            content: [{ type: "text" as const, text: "Please provide the phone number as the country code, a space, then the number (e.g., +1 5551234567 or +91 9876543210)." }],
+            structuredContent: { success: false, error: "Invalid phone number format" },
+          };
+        }
+        if (!BOOKING_API_TOKEN) {
+          return {
+            content: [{ type: "text" as const, text: "Booking is temporarily unavailable. Please try again later." }],
+            structuredContent: { success: false, error: "Booking service unavailable" },
+          };
+        }
+        const { dialCode, mobile } = parsed;
 
-        const resolvedHotelName = hotelName || chainHotels.find(h => h.id.toString() === hotelId)?.name || "Hotel";
+        const resolvedHotelName = hotelName || (await getHotel(hotelId))?.hotel_name || "Hotel";
 
         const bookingPayload: BookingPayload = {
           hotelId,
@@ -434,7 +518,7 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
           adults,
           children,
           infants,
-          totalGuests: adults + children,
+          totalGuests: adults + children + infants,
           applyExtraDiscount: false,
           hotelRooms: [{ name: roomName, ratePlanName }]
         };
@@ -454,13 +538,16 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
           throw new Error(result.message || 'Booking failed');
         }
 
-        const bookingId = result.data?.bookingId || `BK${Date.now()}`;
+        const bookingId = result.data?.bookingId;
+        if (!bookingId) {
+          throw new Error('The hotel system did not confirm the booking');
+        }
 
         return {
           content: [
             {
               type: "text" as const,
-              text: `Booking confirmed! Booking ID: ${bookingId}. ${guestName} has successfully booked ${roomName} at ${resolvedHotelName} for ${checkInDate} to ${checkOutDate}. Confirmation sent to ${guestEmail}.`,
+              text: `Reservation submitted. Booking ID: ${bookingId}. ${guestName} has successfully booked ${roomName} at ${resolvedHotelName} for ${checkInDate} to ${checkOutDate}. Confirmation sent to ${guestEmail}. No payment was collected in ChatGPT.`,
             },
           ],
           structuredContent: {
@@ -484,24 +571,42 @@ const createHandler = (chainId: string) => createMcpHandler(async (server) => {
   );
 });
 
-// Cache handlers by chainId
+function getRequestBaseUrl(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host");
+  if (!host) return baseURL;
+
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const proto = forwardedProto || (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+// Cache handlers by app origin so resource metadata follows the active deployment URL.
+// The legacy ?chainId param is accepted but ignored — search now uses the unified index.
 const handlerCache = new Map<string, ReturnType<typeof createHandler>>();
 
-function getHandler(chainId: string) {
-  if (!handlerCache.has(chainId)) {
-    handlerCache.set(chainId, createHandler(chainId));
+function getHandler(appBaseUrl: string) {
+  const cacheKey = toOrigin(appBaseUrl);
+  if (!handlerCache.has(cacheKey)) {
+    handlerCache.set(cacheKey, createHandler(appBaseUrl));
   }
-  return handlerCache.get(chainId)!;
+  return handlerCache.get(cacheKey)!;
+}
+
+async function handle(request: NextRequest) {
+  const handler = getHandler(getRequestBaseUrl(request));
+  const response = await handler(request);
+  if (!(response instanceof Response)) {
+    console.error("MCP handler returned non-Response:", response);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+  return response;
 }
 
 export async function GET(request: NextRequest) {
-  const chainId = request.nextUrl.searchParams.get("chainId") || DEFAULT_CHAIN_ID;
-  const handler = getHandler(chainId);
-  return handler(request);
+  return handle(request);
 }
 
 export async function POST(request: NextRequest) {
-  const chainId = request.nextUrl.searchParams.get("chainId") || DEFAULT_CHAIN_ID;
-  const handler = getHandler(chainId);
-  return handler(request);
+  return handle(request);
 }
