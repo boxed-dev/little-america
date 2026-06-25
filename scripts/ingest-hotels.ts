@@ -8,6 +8,7 @@
  * By default it discovers chains 1..CHAIN_MAX (env, default 200), skipping gaps.
  * Set CHAIN_IDS="99999" to pull only the backend aggregate chain once it exists.
  */
+import { existsSync, readFileSync } from "fs";
 import {
   HotelDoc,
   createCollection,
@@ -31,6 +32,9 @@ interface RawHotel {
 
 const CHAIN_MAX = Number(process.env.CHAIN_MAX || 200);
 const explicitChains = (process.env.CHAIN_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
+// Static aggregate snapshot (chainId=9999999) — used because that API currently 500s.
+// Holds independent hotels not under any branded chain. Merged in, fresh chains win on dupes.
+const SNAPSHOT = process.env.INGEST_SNAPSHOT || "";
 
 const firstImage = (h: RawHotel) =>
   h.HotelImages?.find((i) => i.cdnImageUrl && !i.cdnImageUrl.includes("chatbot-converted-images"))?.cdnImageUrl || "";
@@ -99,9 +103,25 @@ async function main() {
     if (docs.length) validChains++;
     for (const d of docs) byId.set(d.hotel_id, d);
   });
+  console.log(`discovered ${validChains} chains, ${byId.size} unique hotels`);
+
+  // Merge the aggregate snapshot (independents). Only add hotels not already pulled
+  // from a live chain, so fresh chain data wins.
+  if (SNAPSHOT && existsSync(SNAPSHOT)) {
+    const raw = JSON.parse(readFileSync(SNAPSHOT, "utf8"));
+    const snapHotels: RawHotel[] = raw?.data?.hotels || [];
+    let added = 0;
+    for (const h of snapHotels) {
+      if (h?.id && !byId.has(h.id)) {
+        byId.set(h.id, project(h, 9999999));
+        added++;
+      }
+    }
+    console.log(`snapshot ${SNAPSHOT}: ${snapHotels.length} hotels, +${added} new`);
+  }
+
   const docs = Array.from(byId.values());
   if (docs.length === 0) throw new Error("refusing to swap to an empty index");
-  console.log(`discovered ${validChains} chains, ${docs.length} unique hotels`);
 
   const collection = `hotels_${t0}`;
   await createCollection(collection);
