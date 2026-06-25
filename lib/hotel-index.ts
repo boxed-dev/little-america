@@ -101,8 +101,10 @@ export async function searchHotels(query: string, k = 5): Promise<SearchedHotel[
     .documents()
     .search({
       q,
-      query_by: "name,city,state,address,amenities_text",
-      query_by_weights: "5,4,3,2,1",
+      // address is intentionally excluded: a hotel whose address merely mentions a
+      // city ("90 km from Bangalore") must not surface for that city's search.
+      query_by: "name,city,state,amenities_text",
+      query_by_weights: "5,4,3,1",
       sort_by: "_text_match:desc,rating:desc",
       prefix: true,
       per_page: Math.min(Math.max(k, 1), 20),

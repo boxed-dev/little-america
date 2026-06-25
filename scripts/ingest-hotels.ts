@@ -1,11 +1,12 @@
 /**
  * Daily ingest worker — the ONLY caller of chain-hotels-lite-v2.
- * Pulls full hotel metadata, projects to slim docs, builds a fresh Typesense
- * collection, then atomically swaps the `hotels` alias (zero-downtime).
+ * Discovers all hotel chains, pulls their metadata, projects to slim docs,
+ * builds a fresh Typesense collection, then atomically swaps the `hotels`
+ * alias (zero-downtime).
  *
  * Run: TYPESENSE_API_KEY=... npx tsx scripts/ingest-hotels.ts
- * Source chains via CHAIN_IDS env (default "1,2,3"; set to "99999" once the
- * backend aggregate chain is live).
+ * By default it discovers chains 1..CHAIN_MAX (env, default 200), skipping gaps.
+ * Set CHAIN_IDS="99999" to pull only the backend aggregate chain once it exists.
  */
 import {
   HotelDoc,
@@ -28,7 +29,8 @@ interface RawHotel {
   HotelImages?: { cdnImageUrl: string }[];
 }
 
-const CHAIN_IDS = (process.env.CHAIN_IDS || "1,2,3").split(",").map((s) => s.trim()).filter(Boolean);
+const CHAIN_MAX = Number(process.env.CHAIN_MAX || 200);
+const explicitChains = (process.env.CHAIN_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 const firstImage = (h: RawHotel) =>
   h.HotelImages?.find((i) => i.cdnImageUrl && !i.cdnImageUrl.includes("chatbot-converted-images"))?.cdnImageUrl || "";
@@ -47,27 +49,59 @@ const project = (h: RawHotel, chainId: number): HotelDoc => ({
   chain_id: chainId,
 });
 
-async function fetchChain(chainId: string): Promise<RawHotel[]> {
-  const res = await fetch(`https://api.hotelzify.com/hotel/v2/hotel/chain-hotels-lite-v2?chainId=${chainId}`);
-  if (!res.ok) throw new Error(`chain ${chainId} fetch failed: ${res.status}`);
-  const data = await res.json();
-  if (!data?.data?.hotels) throw new Error(`chain ${chainId}: no hotels (${data?.message ?? "unknown"})`);
-  return data.data.hotels as RawHotel[];
+// Tolerant: a missing/invalid chain returns [] rather than throwing, so one gap
+// can't abort the whole run. Projects to slim docs immediately and discards the
+// heavy raw response (~46 KB/hotel) to keep memory low.
+async function fetchChainSlim(chainId: string): Promise<HotelDoc[]> {
+  try {
+    const res = await fetch(`https://api.hotelzify.com/hotel/v2/hotel/chain-hotels-lite-v2?chainId=${chainId}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const hotels = data?.data?.hotels;
+    if (!Array.isArray(hotels)) return [];
+    return hotels.filter((h: RawHotel) => h?.id).map((h: RawHotel) => project(h, Number(chainId)));
+  } catch {
+    return [];
+  }
+}
+
+// Bounded-concurrency map. Big chains are ~50 MB raw; keep concurrency low so peak
+// memory stays modest on the shared box. ponytail: fixed pool of 4; raise if the
+// daily run gets too slow.
+async function mapPool<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i]);
+      }
+    })
+  );
+  return results;
 }
 
 async function main() {
   if (!isConfigured()) throw new Error("TYPESENSE_API_KEY not set");
   const t0 = Date.now();
 
+  const chains = explicitChains.length
+    ? explicitChains
+    : Array.from({ length: CHAIN_MAX }, (_, i) => String(i + 1));
+
+  const perChain = await mapPool(chains, 4, fetchChainSlim);
+
   // dedupe by hotel_id across chains
   const byId = new Map<number, HotelDoc>();
-  for (const chainId of CHAIN_IDS) {
-    const hotels = await fetchChain(chainId);
-    for (const h of hotels) if (h?.id) byId.set(h.id, project(h, Number(chainId)));
-    console.log(`chain ${chainId}: ${hotels.length} hotels`);
-  }
+  let validChains = 0;
+  perChain.forEach((docs) => {
+    if (docs.length) validChains++;
+    for (const d of docs) byId.set(d.hotel_id, d);
+  });
   const docs = Array.from(byId.values());
   if (docs.length === 0) throw new Error("refusing to swap to an empty index");
+  console.log(`discovered ${validChains} chains, ${docs.length} unique hotels`);
 
   const collection = `hotels_${t0}`;
   await createCollection(collection);
