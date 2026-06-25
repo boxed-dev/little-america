@@ -13,6 +13,7 @@ import {
   HotelDoc,
   createCollection,
   importHotels,
+  registerSynonyms,
   swapAlias,
   cleanupOldCollections,
   isConfigured,
@@ -125,6 +126,7 @@ async function main() {
 
   const collection = `hotels_${t0}`;
   await createCollection(collection);
+  await registerSynonyms(collection);
   const { imported, failed } = await importHotels(collection, docs);
   if (failed.length) {
     console.error("sample import failures:", failed);

@@ -129,6 +129,34 @@ export async function createCollection(name: string) {
   await client().collections().create(hotelCollectionSchema(name) as never);
 }
 
+// Indian cities with two common spellings — searching one must find the other.
+// Multi-way synonyms apply at query time, so register them on each fresh collection.
+const CITY_SYNONYMS: string[][] = [
+  ["bangalore", "bengaluru"],
+  ["bombay", "mumbai"],
+  ["calcutta", "kolkata"],
+  ["madras", "chennai"],
+  ["gurgaon", "gurugram"],
+  ["pondicherry", "puducherry"],
+  ["mysore", "mysuru"],
+  ["trivandrum", "thiruvananthapuram"],
+  ["cochin", "kochi"],
+  ["baroda", "vadodara"],
+  ["vizag", "visakhapatnam"],
+  ["mangalore", "mangaluru"],
+  ["belgaum", "belagavi"],
+  ["hubli", "hubballi"],
+  ["guwahati", "gauhati"],
+  ["simla", "shimla"],
+  ["poona", "pune"],
+];
+
+export async function registerSynonyms(name: string) {
+  for (let i = 0; i < CITY_SYNONYMS.length; i++) {
+    await client().collections(name).synonyms().upsert(`city-${i}`, { synonyms: CITY_SYNONYMS[i] });
+  }
+}
+
 export async function importHotels(name: string, docs: HotelDoc[]) {
   // import is the bulk, fastest path; action upsert is idempotent
   const out = (await client()
