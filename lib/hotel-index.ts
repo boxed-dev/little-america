@@ -78,20 +78,35 @@ const toSearched = (d: HotelDoc): SearchedHotel => ({
   imageUrl: d.image_url || undefined,
 });
 
+// Filler words in natural queries ("hotels in bangalore") match nearly every doc
+// via "hotel"/"in", which makes Typesense drop the meaningful location token and
+// return noise. Strip them so the query keeps only the discriminating terms.
+const FILLER = new Set([
+  "hotel", "hotels", "resort", "resorts", "stay", "stays", "room", "rooms",
+  "property", "properties", "accommodation", "accommodations", "place", "places",
+  "in", "at", "near", "the", "a", "an", "of", "to", "for", "and", "me", "my",
+  "find", "show", "search", "book", "booking", "around", "with",
+]);
+const cleanQuery = (q: string) =>
+  q.toLowerCase().split(/\s+/).map((w) => w.replace(/[^a-z0-9]/g, "")).filter((w) => w && !FILLER.has(w)).join(" ").trim();
+
 // Sub-ms keyword search over the live alias. Throws if Typesense is unreachable;
 // callers decide how to degrade.
 export async function searchHotels(query: string, k = 5): Promise<SearchedHotel[]> {
+  const cleaned = cleanQuery(query);
+  // All-filler query (e.g. "show me hotels") -> match all, ranked by rating.
+  const q = cleaned || "*";
   const res = await client()
     .collections(HOTELS_ALIAS)
     .documents()
     .search({
-      q: query,
+      q,
       query_by: "name,city,state,address,amenities_text",
       query_by_weights: "5,4,3,2,1",
       sort_by: "_text_match:desc,rating:desc",
       prefix: true,
       per_page: Math.min(Math.max(k, 1), 20),
-      num_typos: 2,
+      num_typos: 1,
     });
   return (res.hits ?? []).map((h: { document: unknown }) => toSearched(h.document as HotelDoc));
 }
